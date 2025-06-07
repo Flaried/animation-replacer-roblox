@@ -6,16 +6,17 @@
 
 ---
 
-## 🚀 Overview
+## 🚀 Overview (BETA)
 
-**Animation Spoofing** is an automated tool designed to fix the handling of third part animations in your Roblox game. This bot scrapes Roblox files, spoofs animations, and republishes them to ensure functionality when you publish your game.
+**Animation Spoofing** is an automated process designed to fix the handling of third party animations in your Roblox game. This Spoofer will scrape Roblox files, spoofs animations, and republishes them to ensure functionality when you publish your game.
 
-### ✨ Key Features
+### ✨ Upcoming Key Features
 
-- 🔄 **Automatic Animation Spoofing** - No manual intervention required
+- 🔄 **Automatic Animation Spoofing** - No manual intervention required and all through the terminal
+- ✅ **Group Support** - Supports Group publishing
 - 🛡️ **Uses .ROBLOSECURITY Cookie** - Works directly with your Roblox cookie authentication
 - 🎯 **Minimum Configuration** - Just provide info like cookie and group id and let it work
-
+- 🦀 **Fast and Efficient** - Bot will be as optimized as possible and include all features for **FREE**
 ---
 
 ### 📝 Development Status
