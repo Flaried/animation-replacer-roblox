@@ -1,0 +1,4 @@
+*.lock
+*.env
+*venv*
+target
