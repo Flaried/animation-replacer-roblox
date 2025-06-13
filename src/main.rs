@@ -1,14 +1,13 @@
-use animation_replace_roblox::roblox_api::{
-    self, assetdelivery,
-    roblox_client::{RobloxSession, SessionBuilder},
-};
-use reqwest::Client;
-const ROBLOSECURITY: &str = "your-roblosecurity-token";
+use animation_replace_roblox::roblox_api::roblox_client::SessionBuilder;
+use dotenv::dotenv;
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
+    let roblox_cookie = std::env::var("ROBLOSECURITY").expect(".ROBLOSECURITY must be set in .env");
+
     let session = SessionBuilder::new()
-        .roblosecurity("your_roblosecurity_token_here".to_string())
+        .roblosecurity(roblox_cookie.to_string())
         .build()
         .expect("Failed to build Roblox session");
 
