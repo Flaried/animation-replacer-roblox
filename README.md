@@ -101,6 +101,11 @@ If you encounter any issues or have questions:
 
 ---
 
+## Credit 🤝 
+Since im new to Rust ive been looking at [Roboat](https://github.com/fekie/roboat) as structure to have Error handled API logic.
+
+---
+
 <div align="center">
 
 **⭐ If this project helped you, consider giving it a star! ⭐**
