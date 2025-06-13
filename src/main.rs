@@ -1,8 +1,19 @@
-use animation_replace_roblox::assetdelivery;
+use animation_replace_roblox::roblox_api::{
+    self, assetdelivery,
+    roblox_client::{RobloxSession, SessionBuilder},
+};
+use reqwest::Client;
+const ROBLOSECURITY: &str = "your-roblosecurity-token";
+
 #[tokio::main]
 async fn main() {
-    // Call the basic function and handle the Result
-    if let Err(e) = assetdelivery::catalog_search().await {
-        eprintln!("Error: {}", e);
+    let session = SessionBuilder::new()
+        .roblosecurity("your_roblosecurity_token_here".to_string())
+        .build()
+        .expect("Failed to build Roblox session");
+
+    match session.pull_animation(123141414).await {
+        Ok(body) => println!("{}", body),
+        Err(e) => eprintln!("Failed to fetch animation: {}", e),
     }
 }
