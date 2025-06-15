@@ -1,42 +1,40 @@
 //
 mod request_types;
-use reqwest::header::HeaderValue;
+use crate::roblox_api::roblox_client::RobloxSession;
+use reqwest::header::{COOKIE, HeaderValue};
 use std::error::Error;
 
-use crate::{
-    XCSRF_HEADER,
-    roblox_api::{
-        roblox_client::{self, RobloxSession},
-        validation,
-    },
-};
-// pub async fn catalog_search(id: u64) -> Result<(), Box<dyn std::error::Error>> {
-//     let base_url = "https://assetdelivery.roblox.com/v1/asset";
-//     //
-//
-//     let url = Url::parse_with_params(base_url, &[("id", id.to_string())])?;
-//     // let resp = reqwest::get("https://catalog.roblox.com/v1/search/navigation-menu-items").await?;
-//     // let resp_json = resp.json::<Wrapper>().await?;
-//     // println!("{:#?}", resp_json);
-//     // Ok(())
-// }
-
+use crate::XCSRF_HEADER;
 impl RobloxSession {
     pub async fn pull_animation(&self, item_id: u64) -> Result<String, Box<dyn Error>> {
         let xcsrf_token = self.xcsrf.read().await.clone();
         let url = format!("https://assetdelivery.roblox.com/v1/asset/?id={}", item_id);
 
-        let response = self
+        println!("{:?}", xcsrf_token);
+
+        // Start building the request.
+        let mut builder = self
             .reqwest_client
             .get(&url)
-            .header(XCSRF_HEADER, HeaderValue::from_str(&xcsrf_token)?)
-            .send()
-            .await?;
+            .header(XCSRF_HEADER, HeaderValue::from_str(&xcsrf_token)?);
 
-        let response = Self::handle_status(response).await?;
+        // Add the roblosecurity cookie if it exists.
+        if let Some(cookie_string) = &self.cookie_string {
+            builder = builder.header(COOKIE, cookie_string.clone());
+        }
 
-        let content = response.text().await?;
-        Ok(content)
+        let request_result = builder.send().await;
+        match Self::validate_request_result(request_result).await {
+            Ok(response) => {
+                // Extract and return the content.
+                let content = response.text().await?;
+                Ok(content)
+            }
+            Err(e) => {
+                // Handle errors (network errors, status errors, etc.)
+                Err(Box::new(e))
+            }
+        }
     }
 }
 
