@@ -63,6 +63,10 @@ impl RobloxSession {
         }
     }
 
+    pub(crate) async fn set_xcsrf(&self, xcsrf: String) {
+        *self.xcsrf.write().await = xcsrf;
+    }
+
     fn create_cookie_string_header(roblosecurity: &str) -> HeaderValue {
         let mut header = HeaderValue::from_str(&format!(".ROBLOSECURITY={}", roblosecurity))
             .expect("Invalid roblosecurity characters.");
