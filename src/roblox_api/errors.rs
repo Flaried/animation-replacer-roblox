@@ -30,4 +30,7 @@ pub enum RobloxError {
 
     #[error("Request Failed InternalServerError bad payload")]
     InternalServerError,
+
+    #[error("Missing Animation Data for uploading API")]
+    MissingAnimationData,
 }
