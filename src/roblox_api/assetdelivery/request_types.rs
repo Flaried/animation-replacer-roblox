@@ -1,10 +1,12 @@
 use url::form_urlencoded;
 
+#[derive(Clone, Debug)]
 pub struct Animation {
     pub id: Option<u64>,
     pub title: String,
     pub description: String,
     pub group_id: Option<u64>,
+    pub animation_data: Option<String>,
 }
 pub fn asset_delivery_url(id: u64) -> String {
     format!("https://assetdelivery.roblox.com/v1/asset/?id={:?}", id,)
