@@ -2,6 +2,7 @@ use crate::{Animation, StudioParser};
 use rbx_binary::from_reader;
 use rbx_types::Variant;
 use std::fs::File;
+use std::path::Path;
 use ustr::Ustr;
 
 impl StudioParser {
@@ -26,11 +27,17 @@ impl StudioParser {
         animations
     }
 
-    pub fn from_rbxl(file_name: String) -> Result<StudioParser, Box<dyn std::error::Error>> {
-        let file = File::open(file_name)?;
+    pub fn from_rbxl<P: AsRef<Path>>(
+        file_path: P,
+    ) -> Result<StudioParser, Box<dyn std::error::Error>> {
+        // Expand tilde and environment variables
+        let expanded_path = shellexpand::full(file_path.as_ref().to_str().unwrap())?;
+
+        // Open the file using the expanded path
+        let file = File::open(expanded_path.as_ref())?;
+
         let dom = from_reader(file)?;
 
         Ok(StudioParser { dom })
     }
 }
-
