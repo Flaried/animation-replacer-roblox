@@ -17,4 +17,6 @@ url = "2.5.4"
 roboat = { git = "https://github.com/Flaried/roboat-extras.git", branch = "main" }
 rbx_dom_weak = "3.0.0"
 rbx_binary = "1.0.0"
+ustr = "1.1.0"
+rbx_types = "2.0.0"
 
