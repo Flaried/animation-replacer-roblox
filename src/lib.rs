@@ -14,6 +14,7 @@ pub struct Animation<'a> {
 
 /// A structure to be impl for the roblox studio DOM
 pub struct StudioParser {
+    pub roblosecurity: Option<String>,
     pub dom: WeakDom,
 }
 

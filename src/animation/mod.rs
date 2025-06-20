@@ -2,22 +2,31 @@ use roboat::ClientBuilder;
 use roboat::RoboatError;
 use roboat::ide::ide_types::NewAnimation;
 
-pub async fn reupload_animation() -> Result<(), RoboatError> {
-    let roblox_cookie = std::env::var("ROBLOSECURITY").expect(".ROBLOSECURITY must be set in .env");
-    let client = ClientBuilder::new().roblosecurity(roblox_cookie).build();
+use crate::StudioParser;
 
-    let asset_id = 128511411359897;
-    let existing_animation = client.fetch_asset_data(asset_id).await?;
+impl StudioParser {
+    pub async fn reupload_animation(&self, asset_id: u64) -> Result<(), RoboatError> {
+        let client = ClientBuilder::new()
+            // Gonna error if theres no cookie
+            .roblosecurity(
+                self.roblosecurity
+                    .clone()
+                    .expect("roblosecurity cookie required"),
+            )
+            .build();
 
-    let animation = NewAnimation {
-        group_id: None,
-        name: "roboatTest".to_string(),
-        description: "This is a roboat example".to_string(),
-        animation_data: existing_animation,
-    };
+        let existing_animation = client.fetch_asset_data(asset_id).await?;
 
-    client.upload_new_animation(animation).await?;
+        let animation = NewAnimation {
+            group_id: None,
+            name: "roboatTest".to_string(),
+            description: "This is a roboat example".to_string(),
+            animation_data: existing_animation,
+        };
 
-    println!("Uploaded Animation!");
-    Ok(())
+        client.upload_new_animation(animation).await?;
+
+        println!("Uploaded Animation!");
+        Ok(())
+    }
 }
