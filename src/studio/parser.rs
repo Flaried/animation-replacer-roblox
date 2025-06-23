@@ -6,8 +6,23 @@ use std::path::Path;
 use ustr::Ustr;
 
 impl StudioParser {
+    /// Finds all Animation instances in the workspace and extracts their AnimationIds.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let parser = StudioParser::from_rbxl("~/Desktop/MyPlace.rbxl")?;
+    /// let animations = parser.workspace_animations();
+    ///
+    /// for animation in &animations {
+    ///     if let Some(id) = animation.animation_id.strip_prefix("rbxassetid://") {
+    ///         println!("Animation ID: {}", id);
+    ///     }
+    /// }
+    /// ```
     pub fn workspace_animations(&self) -> Vec<Animation> {
         let mut animations = Vec::new();
+
         for instance in self.dom.descendants() {
             if instance.class == "Animation" {
                 if let Some(instance_type) = instance.properties.get(&Ustr::from("AnimationId")) {
@@ -23,15 +38,22 @@ impl StudioParser {
                 }
             }
         }
+
         animations
     }
 
+    /// Creates a StudioParser from a .rbxl file. Supports shell expansion (~, environment variables).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let parser = StudioParser::from_rbxl("~/Desktop/MyPlace.rbxl")?;
+    /// let scripts = parser.all_scripts();
+    /// ```
     pub fn from_rbxl<P: AsRef<Path>>(
         file_path: P,
     ) -> Result<StudioParser, Box<dyn std::error::Error>> {
-        // Expand tilde and environment variables
         let expanded_path = shellexpand::full(file_path.as_ref().to_str().unwrap())?;
-        // Open the file using the expanded path
         let file = File::open(expanded_path.as_ref())?;
         let dom = from_reader(file)?;
         Ok(StudioParser {
@@ -40,11 +62,22 @@ impl StudioParser {
         })
     }
 
+    /// Creates a builder for fluent configuration with file path and authentication.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let parser = StudioParser::builder()
+    ///     .file_path("~/Desktop/MyPlace.rbxl")
+    ///     .roblosecurity("your_cookie")
+    ///     .build()?;
+    /// ```
     pub fn builder() -> StudioParserBuilder {
         StudioParserBuilder::new()
     }
 }
 
+/// Builder for creating StudioParser instances with optional authentication.
 #[derive(Debug, Default)]
 pub struct StudioParserBuilder {
     file_path: Option<String>,
@@ -61,22 +94,19 @@ impl StudioParserBuilder {
         self
     }
 
+    /// Sets the Roblosecurity cookie for API authentication.
+    /// Required for animation validation and re-uploading features.
     pub fn roblosecurity<S: Into<String>>(mut self, roblosecurity: S) -> Self {
         self.roblosecurity = Some(roblosecurity.into());
         self
     }
 
+    /// Builds the StudioParser. File path is required.
     pub fn build(self) -> Result<StudioParser, Box<dyn std::error::Error>> {
         let file_path = self.file_path.ok_or("File path is required")?;
-
-        // Expand tilde and environment variables
         let expanded_path = shellexpand::full(&file_path)?;
-
-        // Open the file using the expanded path
         let file = File::open(expanded_path.as_ref())?;
-
         let dom = from_reader(file)?;
-
         Ok(StudioParser {
             roblosecurity: self.roblosecurity,
             dom,
