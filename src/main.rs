@@ -1,6 +1,5 @@
 use animation_replace_roblox::{StudioParser, animation};
 use dotenv::dotenv;
-use roboat::ClientBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -8,21 +7,12 @@ async fn main() {
 
     let file_path = shellexpand::tilde("~/Documents/Place1.rbxl");
 
-    // let parser = match StudioParser::from_rbxl(file_path.as_ref()) {
-    //     Ok(parser) => parser,
-    //     Err(e) => {
-    //         eprintln!("Error loading file: {}", e);
-    //         return;
-    //     }
-    // };
-
     let roblox_cookie = std::env::var("ROBLOSECURITY").expect(".ROBLOSECURITY must be set in .env");
-    let client = ClientBuilder::new().roblosecurity(roblox_cookie).build();
 
     // Build the parser with the roboat client
     let parser = match StudioParser::builder()
         .file_path(file_path.as_ref())
-        .roblosecurity("1233")
+        .roblosecurity(roblox_cookie)
         .build()
     {
         Ok(parser) => parser,
@@ -33,7 +23,21 @@ async fn main() {
     };
 
     let animations = parser.workspace_animations();
-    let scripts = parser.animations_in_scripts();
+
+    let scripts = parser.all_scripts();
+    for script in scripts {
+        match parser.animations_in_script(&script).await {
+            Ok(animations) => {
+                println!("{:?}", animations);
+            }
+            Err(e) => {
+                eprintln!("Failed to get workspace animations: {:?}", e);
+            }
+        };
+        // for animation_id in script_animations {
+        //     println!("{:?}", animation_id);
+        // }
+    }
 
     // match parser.reupload_animation().await {
     //     Ok(_) => {}
