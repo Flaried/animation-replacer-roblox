@@ -1,5 +1,6 @@
 use crate::ScriptType;
 
+/// Used to Determine what script it is.
 impl ScriptType {
     pub fn from_class_name(class_name: &str) -> Self {
         match class_name {
