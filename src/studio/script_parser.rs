@@ -1,10 +1,11 @@
 use crate::Script;
 use crate::ScriptType;
 use crate::StudioParser;
-use futures::stream::{self, StreamExt};
+// use futures::stream::{self, StreamExt};
 use rbx_dom_weak::types::Variant;
 use regex::Regex;
-use reqwest::Proxy;
+use roboat::catalog::AssetType;
+// use reqwest::Proxy;
 use roboat::ClientBuilder;
 use roboat::RoboatError;
 use roboat::assetdelivery::request_types::AssetBatchPayload;
@@ -16,7 +17,13 @@ use tokio::time::sleep;
 use ustr::Ustr;
 
 impl StudioParser {
-    // Returns a vector of animation asset IDs found in the script
+    /// Returns a vector of AssetBatchResponse (Animation Details from batch API) found in the script
+    /// # Notes:
+    /// Takes in a script, scans all the IDs into it then has batch_sizes of 250.
+    /// It posts 250 Ids at a time to the asset batch API then filters out everything but
+    /// animations.
+    /// * Requires a cookie
+    /// * Batch API does hang sometimes, fixed that with retries and 3 second timeout.
     pub async fn animations_in_script(
         &self,
         script: &Script<'_>,
@@ -24,7 +31,6 @@ impl StudioParser {
         let mut return_list: Vec<AssetBatchResponse> = Vec::new();
 
         let pattern = Regex::new(r"\d{5,}").unwrap();
-        println!("{:?}", script.source);
 
         // Extract and deduplicate IDs first
         let unique_ids: HashSet<u64> = pattern
@@ -42,9 +48,11 @@ impl StudioParser {
         for batch in id_batches {
             let payloads: Vec<AssetBatchPayload> = batch
                 .iter()
-                .map(|&id| AssetBatchPayload {
-                    asset_id: Some(id.to_string()),
-                    request_id: Some("0".to_string()),
+                .map(|&asset_id| AssetBatchPayload {
+                    asset_id: Some(asset_id.to_string()),
+                    //
+                    // Little hack here, the response requestId will be the assetId
+                    request_id: Some(asset_id.to_string()),
                     ..Default::default()
                 })
                 .collect();
@@ -53,8 +61,10 @@ impl StudioParser {
             loop {
                 match self.check_animation_types(payloads.clone()).await {
                     Ok(Some(mut result)) => {
-                        println!("adding to list");
+                        // Keep only animations
+                        result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
                         return_list.append(&mut result);
+
                         break;
                     }
                     Ok(None) => {
@@ -88,10 +98,13 @@ impl StudioParser {
             }
         }
 
-        println!("done");
         Ok(return_list)
     }
 
+    /// Takes in a batch of up to 250 assets and returns all the details to them.
+    /// It will return a vector of AssetBatchResponse
+    /// Also creates a timeout for the hanging API error from this endpoint.
+    /// Requires Cookie
     async fn check_animation_types(
         &self,
         asset_id: Vec<AssetBatchPayload>,
@@ -119,6 +132,7 @@ impl StudioParser {
         }
     }
 
+    /// Gets every script and source code from the .rbxl file
     pub fn all_scripts(&self) -> Vec<Script<'_>> {
         let mut scripts = Vec::new();
         for instance in self.dom.descendants() {
