@@ -11,8 +11,8 @@
 - ✅ Scrape animations in lua scripts
 - ✅ Scrape animation objects in the game file
 - ✅ Fetch animation metadata, file contents, and asset types
-- ❌ Reuploading or spoofing animations not yet implemented (In development)
-- ❌ Writing animations back to workspace or script source not yet implemented
+- ✅ Upload multiple animations in a concurrent system (semaphore)
+- ❌ Writing animations back to workspace or script source (not yet implemented)
 
 
 
