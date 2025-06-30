@@ -1,5 +1,5 @@
 # 🎭 Animation Replacer for Roblox (WIP)
-*Automatic Animation Spoofer*
+*Automatic Animation Replacer*
 
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Roblox](https://img.shields.io/badge/Roblox-00A2FF?style=for-the-badge&logo=roblox&logoColor=white)](https://www.roblox.com/)
