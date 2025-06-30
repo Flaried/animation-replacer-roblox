@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use animation_replace_roblox::StudioParser;
 use dotenv::dotenv;
+use roboat::assetdelivery::request_types::AssetBatchResponse;
 // use log::{debug, info};
 
 #[tokio::main]
@@ -23,24 +26,31 @@ async fn main() {
         }
     };
 
+    let mut all_animations: Vec<AssetBatchResponse> = Vec::new();
     let workspace_animations = parser.workspace_animations();
     match workspace_animations.await {
-        Ok(animations) => {
+        Ok(mut animations) => {
             println!("Animations: {:?}", animations);
+            all_animations.append(&mut animations);
         }
         Err(e) => {
-            eprintln!("Failed to fetch animations: {:?}", e);
+            eprintln!("Failed to workspace animations: {:?}", e);
         }
     }
 
     let script_animations = parser.all_animations_in_scripts();
 
     match script_animations.await {
-        Ok(animations) => {
+        Ok(mut animations) => {
             println!("Animations: {:?}", animations);
+            all_animations.append(&mut animations);
         }
         Err(e) => {
             eprintln!("Failed to fetch animations: {:?}", e);
         }
     }
+
+    let uploader = Arc::new(parser);
+    uploader.reupload_all_animations(all_animations).await;
+    // println!("{:?}", all_animations);
 }
