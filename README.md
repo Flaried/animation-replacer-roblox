@@ -58,7 +58,7 @@
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (latest stable version)
-- Valid Roblox authentication cookie
+- Valid roblox authentication cookie
 - .RBLX or Studio file with animations
 
 ## 🎯 How It Works
@@ -79,11 +79,9 @@ The tool requires minimal setup:
 
 ### Security & Privacy
 - Your Roblox cookie is only used for authentication purposes
-- Use at your own discretion and follow Roblox's Terms of Service
 - Animations wont work if you dont use --group flag and then upload the game to a group
 
 ### Disclaimer
-- This tool is provided as-is for educational and development purposes
 - Users are responsible for compliance with Roblox's policies
 - Always ask/give credit to animators.
 
@@ -101,18 +99,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 🙋‍♂️ Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Issues](../../issues) page for existing solutions
-2. Create a new issue with detailed information
-3. Provide relevant error messages and system information
-
----
-
 ## Credit 🤝 
-Since im new to Rust ive been looking at [Roboat](https://github.com/fekie/roboat) as structure to have Error handled API logic.
+Im using a roblox wrapper; [Roboat](https://github.com/fekie/roboat) to achieve a more stable and better development with roblox's changes.
 
 ---
 
