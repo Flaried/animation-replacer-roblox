@@ -1,6 +1,9 @@
 use crate::{Animation, StudioParser};
 use rbx_binary::from_reader;
 use rbx_types::Variant;
+use regex::Regex;
+use roboat::RoboatError;
+use roboat::assetdelivery::request_types::AssetBatchResponse;
 use std::fs::File;
 use std::path::Path;
 use ustr::Ustr;
@@ -20,26 +23,25 @@ impl StudioParser {
     ///     }
     /// }
     /// ```
-    pub fn workspace_animations(&self) -> Vec<Animation> {
-        let mut animations = Vec::new();
 
-        for instance in self.dom.descendants() {
-            if instance.class == "Animation" {
-                if let Some(instance_type) = instance.properties.get(&Ustr::from("AnimationId")) {
-                    if let Variant::ContentId(content_id) = instance_type {
-                        let url = content_id.as_str();
-                        if !url.is_empty() {
-                            animations.push(Animation {
-                                instance,
-                                animation_id: url.to_string(),
-                            });
-                        }
-                    }
-                }
-            }
-        }
+    pub async fn workspace_animations(&self) -> Result<Vec<AssetBatchResponse>, RoboatError> {
+        let re = Regex::new(r"\d+").unwrap();
 
-        animations
+        let asset_ids: Vec<u64> = self
+            .dom
+            .descendants()
+            .filter(|instance| instance.class == "Animation")
+            .filter_map(
+                |instance| match instance.properties.get(&Ustr::from("AnimationId")) {
+                    Some(Variant::ContentId(content_id)) => re
+                        .find(content_id.as_str())
+                        .and_then(|mat| mat.as_str().parse::<u64>().ok()),
+                    _ => None,
+                },
+            )
+            .collect();
+
+        self.fetch_animation_assets(asset_ids).await
     }
 
     /// Creates a StudioParser from a .rbxl file. Supports shell expansion (~, environment variables).
