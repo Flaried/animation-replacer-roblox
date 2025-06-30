@@ -11,7 +11,7 @@
 - ✅ Scrape animations in lua scripts
 - ✅ Scrape animation objects in the game file
 - ✅ Fetch animation metadata, file contents, and asset types
-- ✅ Upload multiple animations in a concurrent system (semaphore)
+- ✅ Upload multiple animations in a concurrent system; using [semaphore](https://docs.rs/semaphore/latest/semaphore/)
 - ❌ Writing animations back to workspace or script source (not yet implemented)
 
 
