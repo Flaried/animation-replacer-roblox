@@ -1,15 +1,48 @@
-# 🎭 Animation Replacer for Roblox
+# 🎭 Animation Replacer for Roblox (WIP)
 *Automatic Animation Spoofer*
 
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Roblox](https://img.shields.io/badge/Roblox-00A2FF?style=for-the-badge&logo=roblox&logoColor=white)](https://www.roblox.com/)
 
+
+
+---
+## 📝 Development Status
+- ✅ Scrape animations in lua scripts
+- ✅ Scrape animation objects in the game file
+- ✅ Fetch animation metadata, file contents, and asset types
+- ❌ Reuploading or spoofing animations not yet implemented (In development)
+- ❌ Writing animations back to workspace or script source not yet implemented
+
+
+
+### 📦 Installation
+
+<!-- 1. **Clone the repository** -->
+<!--    ```bash -->
+<!--    git clone https://github.com/yourusername/animation-replacer-roblox.git -->
+<!--    cd animation-replacer-roblox -->
+<!--    ``` -->
+<!--  -->
+<!-- 2. **Build the project** -->
+<!--    ```bash -->
+<!--    cargo build --release -->
+<!--    ``` -->
+<!--  -->
+<!-- 3. **Run the application** -->
+<!--    ```bash -->
+<!--    cargo run -->
+<!--    ``` -->
+> ⚠️ This project is currently under active development.  
+> Installation instructions will be provided in a future release. ⚠️
 ---
 
-## 🚀 Overview (BETA)
+
+### 🚀 Overview (BETA)
 
 **Animation Spoofing** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoofs animations, and republish them to ensure functionality when you publish your game.
 
+---
 ### ✨ Upcoming Key Features
 
 - 🔄 **Automatic Animation Spoofing** - No manual intervention required and all through the terminal
@@ -19,37 +52,14 @@
 - 🦀 **Fast and Efficient** - This program will be completely free, and will be as efficient as possible.
 ---
 
-### 📝 Development Status
-❌Core functionality implemented
 
----
 ## 🛠️ Getting Started
 
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (latest stable version)
 - Valid Roblox authentication cookie
-- .RBLX or Studio file with animations that aren't published by your account
-
-### 📦 Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/animation-replacer-roblox.git
-   cd animation-replacer-roblox
-   ```
-
-2. **Build the project**
-   ```bash
-   cargo build --release
-   ```
-
-3. **Run the application**
-   ```bash
-   cargo run
-   ```
-
----
+- .RBLX or Studio file with animations
 
 ## 🎯 How It Works
 1. **Authentication** - Uses the provided cookie for publishing APIs
