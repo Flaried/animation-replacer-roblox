@@ -1,4 +1,4 @@
-use crate::{Animation, StudioParser};
+use crate::StudioParser;
 use rbx_binary::from_reader;
 use rbx_types::Variant;
 use regex::Regex;
