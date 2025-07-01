@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use animation_replace_roblox::StudioParser;
+use animation_replace_roblox::animation::uploader::AnimationUploader;
 use dotenv::dotenv;
 use roboat::assetdelivery::request_types::AssetBatchResponse;
 // use log::{debug, info};
@@ -16,7 +17,7 @@ async fn main() {
     // Build the parser with the roboat client
     let mut parser = match StudioParser::builder()
         .file_path(file_path.as_ref())
-        .roblosecurity(roblox_cookie)
+        .roblosecurity(&roblox_cookie)
         .build()
     {
         Ok(parser) => parser,
@@ -50,7 +51,18 @@ async fn main() {
         }
     }
 
-    let uploader = Arc::new(parser);
-    uploader.reupload_all_animations(all_animations).await;
-    // println!("{:?}", all_animations);
+    let uploader = Arc::new(AnimationUploader::new(roblox_cookie));
+
+    match uploader.reupload_all_animations(all_animations).await {
+        Ok(animation_mapping) => {
+            if let Err(e) = parser.update_script_animations(&animation_mapping) {
+                eprintln!("Failed to update script animations: {:?}", e);
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to upload animations: {:?}", e);
+        }
+    }
+
+    parser.save_to_rbxl("~/Documents/Place2.rbxl").unwrap();
 }

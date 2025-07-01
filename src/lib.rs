@@ -39,7 +39,7 @@ pub struct StudioParser {
 
 /// A structure to store the instance, source code and class name of a script
 pub struct Script<'a> {
-    pub instance: &'a Instance,
+    pub instance: &'a mut Instance,
     pub source: String,
     pub script_type: ScriptType,
 }
