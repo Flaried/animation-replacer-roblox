@@ -46,8 +46,8 @@ impl AnimationUploader {
 
         let animation = NewAnimation {
             group_id: group_id,
-            name: "roboatTestv2".to_string(),
-            description: "This is a roboat example".to_string(),
+            name: "reuploaded_animation".to_string(),
+            description: "This is a example".to_string(),
             animation_data,
         };
 
