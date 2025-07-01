@@ -39,7 +39,10 @@ impl StudioParser {
 
         // Convert to Vec and fetch assets
         let id_list: Vec<u64> = all_ids.into_iter().collect();
-        println!("Got all animations from script... Sending them to Roblox API");
+        println!(
+            "Got all animations from scripts: {}... Sending them to Roblox API",
+            id_list.len()
+        );
         self.fetch_animation_assets(id_list).await
     }
 
