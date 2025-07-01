@@ -34,6 +34,7 @@
    ```bash
    cargo build --release
    ```
+> 🪟 For Windows users heres: [cargo install guide](https://doc.rust-lang.org/cargo/getting-started/installation.html) (to fix cargo not working)
 
 3. **Run the application**
 
