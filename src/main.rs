@@ -2,23 +2,39 @@ use std::sync::Arc;
 
 use animation_replace_roblox::StudioParser;
 use animation_replace_roblox::animation::uploader::AnimationUploader;
-use dotenv::dotenv;
+use clap::Parser;
 use roboat::assetdelivery::request_types::AssetBatchResponse;
-// use log::{debug, info};
+
+#[derive(Parser, Debug)]
+struct Args {
+    /// .ROBLOSECURITY cookie string [WARNING STRING REQUIRED]
+    #[arg(long, short)]
+    cookie: String,
+
+    /// file PATH of the .rbxl file [REQUIRED]
+    #[arg(long, short)]
+    file: String,
+
+    /// Save the copy instead replacing file [AVOID DATA LOSS]
+    #[arg(long, short)]
+    output: Option<String>,
+
+    /// Required if the the game will be published to a Group [Id of the group]
+    #[arg(long, short)]
+    group: Option<u64>,
+}
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
-
-    let file_path = shellexpand::tilde("~/Documents/Place1.rbxl");
-    let roblox_cookie = std::env::var("ROBLOSECURITY").expect(".ROBLOSECURITY must be set in .env");
+    let args = Args::parse();
+    let file_path = shellexpand::tilde(&args.file).to_string();
 
     // Build the parser with the roboat client
-    let mut parser = match StudioParser::builder()
-        .file_path(file_path.as_ref())
-        .roblosecurity(&roblox_cookie)
-        .build()
-    {
+    let builder = StudioParser::builder()
+        .file_path(file_path)
+        .roblosecurity(&args.cookie);
+
+    let mut parser = match builder.build() {
         Ok(parser) => parser,
         Err(e) => {
             eprintln!("Error loading file: {}", e);
@@ -50,9 +66,11 @@ async fn main() {
         }
     }
 
-    let uploader = Arc::new(AnimationUploader::new(roblox_cookie));
-
-    match uploader.reupload_all_animations(all_animations).await {
+    let uploader = Arc::new(AnimationUploader::new(args.cookie));
+    match uploader
+        .reupload_all_animations(all_animations, args.group.clone())
+        .await
+    {
         Ok(animation_mapping) => {
             if let Err(e) = parser.update_script_animations(&animation_mapping) {
                 eprintln!("Failed to update script animations: {:?}", e);
