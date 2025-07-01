@@ -11,9 +11,12 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 pub struct AnimationUploader {
-    pub roblosecurity: Option<String>,
+    pub roblosecurity: String,
 }
 impl AnimationUploader {
+    pub fn new(roblosecurity: String) -> Self {
+        Self { roblosecurity }
+    }
     /// Downloads an existing animation and re-uploads it with default metadata.
     /// Useful for backing up or migrating animations.
     ///
@@ -35,12 +38,7 @@ impl AnimationUploader {
     ///
     pub async fn upload_animation(&self, animation_data: Bytes) -> Result<String, RoboatError> {
         let client = ClientBuilder::new()
-            // Gonna error if theres no cookie
-            .roblosecurity(
-                self.roblosecurity
-                    .clone()
-                    .expect("roblosecurity cookie required"),
-            )
+            .roblosecurity(self.roblosecurity.clone())
             .build();
 
         let animation = NewAnimation {
@@ -73,9 +71,7 @@ impl AnimationUploader {
 
         let client = ClientBuilder::new()
             .roblosecurity(
-                self.roblosecurity
-                    .clone()
-                    .expect("roblosecurity cookie required"),
+                self.roblosecurity.clone(), // .expect("roblosecurity cookie required"),
             )
             .reqwest_client(timeout_client)
             .build();
