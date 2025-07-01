@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use ustr::Ustr;
 
 impl StudioParser {
-    /// Modifies script source code by replacing animation IDs with new ones
+    /// Updates animation IDs in script source code using the provided mapping.
     pub fn update_script_animations(
         &mut self,
         animation_mapping: &HashMap<String, String>,

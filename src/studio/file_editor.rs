@@ -4,13 +4,14 @@ use std::fs::File;
 use std::path::Path;
 
 impl StudioParser {
-    /// Saves the current DOM state to a .rbxl file
+    /// Saves the DOM to a .rbxl file.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// let mut parser = StudioParser::from_rbxl("input.rbxl")?;
-    /// // Make modifications...
+    /// let parser = StudioParser::builder()
+    ///     .file_path("input.rbxl")
+    ///     .build()?;
     /// parser.save_to_rbxl("output.rbxl")?;
     /// ```
 

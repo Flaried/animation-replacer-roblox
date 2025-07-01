@@ -9,7 +9,7 @@ pub mod studio;
 /// A module for handling parsing and editing on scripts, in studio files.
 pub mod script;
 
-/// A structure to store the Instance and Id of the animation
+/// Represents an animation with its instance and ID.
 #[derive(Debug, Clone)]
 pub struct Animation<'a> {
     pub instance: &'a Instance,
@@ -31,13 +31,13 @@ impl<'a> Animation<'a> {
         }
     }
 }
-/// A structure to be impl for the roblox studio DOM
+/// Parser for Roblox Studio files with optional authentication.
 pub struct StudioParser {
     pub roblosecurity: Option<String>,
     pub dom: WeakDom,
 }
 
-/// A structure to store the instance, source code and class name of a script
+/// Represents a script with its instance, source code and type.
 pub struct Script<'a> {
     pub instance: &'a mut Instance,
     pub source: String,

@@ -14,28 +14,22 @@ pub struct AnimationUploader {
     pub roblosecurity: String,
 }
 impl AnimationUploader {
+    /// Creates a new AnimationUploader with the given cookie.
     pub fn new(roblosecurity: String) -> Self {
         Self { roblosecurity }
     }
-    /// Downloads an existing animation and re-uploads it with default metadata.
-    /// Useful for backing up or migrating animations.
+
+    /// Uploads animation data to Roblox.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// // Re-upload a single animation
-    /// parser.reupload_animation(123456789, 21565414243).await?;
-    ///
-    /// // Batch process all animations found in scripts
-    /// let animation_ids = parser.find_all_animations().await?;
-    /// for &id in &animation_ids {
-    ///     parser.reupload_animation(id).await?;
-    ///     tokio::time::sleep(Duration::from_secs(1)).await; // Rate limiting
-    /// }
+    /// let uploader = AnimationUploader::new(cookie);
+    /// let animation_data = std::fs::read("animation.rbxm")?;
+    /// let new_id = uploader.upload_animation(animation_data.into(), Some(123456)).await?;
     /// ```
     ///
-    /// Requires roblosecurity cookie. Does not handle rate limiting automatically.
-    ///
+
     pub async fn upload_animation(
         &self,
         animation_data: Bytes,
@@ -234,7 +228,7 @@ mod internal {
     const TIMEOUT_SECS: u64 = 1;
 
     impl AnimationUploader {
-        /// Downloads bytes from a roblox location URL
+        /// Downloads file bytes from a URL with retry logic.
         pub async fn file_bytes_from_url(&self, url: String) -> Result<Bytes, RoboatError> {
             let client = Client::new();
 

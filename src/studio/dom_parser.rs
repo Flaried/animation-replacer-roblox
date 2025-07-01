@@ -9,19 +9,16 @@ use std::path::Path;
 use ustr::Ustr;
 
 impl StudioParser {
-    /// Finds all Animation instances in the workspace and extracts their AnimationIds.
+    /// Finds Animation instances in the workspace and returns their metadata.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// let parser = StudioParser::from_rbxl("~/Desktop/MyPlace.rbxl")?;
-    /// let animations = parser.workspace_animations();
-    ///
-    /// for animation in &animations {
-    ///     if let Some(id) = animation.animation_id.strip_prefix("rbxassetid://") {
-    ///         println!("Animation ID: {}", id);
-    ///     }
-    /// }
+    /// let parser = StudioParser::builder()
+    ///     .file_path("MyPlace.rbxl")
+    ///     .roblosecurity("cookie")
+    ///     .build()?;
+    /// let animations = parser.workspace_animations().await?;
     /// ```
 
     pub async fn workspace_animations(&self) -> Result<Vec<AssetBatchResponse>, RoboatError> {

@@ -42,7 +42,8 @@ impl StudioParser {
         println!("Got all animations from script... Sending them to Roblox API");
         self.fetch_animation_assets(id_list).await
     }
-    /// Gets referents for all script instances (Script, LocalScript, ModuleScript)
+
+    /// Gets references to all script instances in the DOM.
     pub fn get_script_refs(&self) -> Vec<rbx_dom_weak::types::Ref> {
         self.dom
             .descendants()
