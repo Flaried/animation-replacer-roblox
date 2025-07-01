@@ -20,3 +20,4 @@ shellexpand = "3.1.1"
 log = "0.4.27"
 
 clap = { version = "4.1.13", features = ["derive"] }
+reqwest = "0.12.21"
