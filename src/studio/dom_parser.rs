@@ -44,26 +44,6 @@ impl StudioParser {
         self.fetch_animation_assets(asset_ids).await
     }
 
-    /// Creates a StudioParser from a .rbxl file. Supports shell expansion (~, environment variables).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let parser = StudioParser::from_rbxl("~/Desktop/MyPlace.rbxl")?;
-    /// let scripts = parser.all_scripts();
-    /// ```
-    pub fn from_rbxl<P: AsRef<Path>>(
-        file_path: P,
-    ) -> Result<StudioParser, Box<dyn std::error::Error>> {
-        let expanded_path = shellexpand::full(file_path.as_ref().to_str().unwrap())?;
-        let file = File::open(expanded_path.as_ref())?;
-        let dom = from_reader(file)?;
-        Ok(StudioParser {
-            roblosecurity: None,
-            dom,
-        })
-    }
-
     /// Creates a builder for fluent configuration with file path and authentication.
     ///
     /// # Examples
