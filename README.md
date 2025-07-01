@@ -68,9 +68,9 @@ You will also need to open Roblox Studio and save the game as a file for the Ani
 ---
 
 ## 💻 How It Works
-2. **File Scanning** - The bot automatically scans and identifies animations in the Roblox files
-3. **Reuploading** - Each animation is processed and republished to ensure compatbility
-5. **Completion** - Your game has working animations.
+1. **File Scanning** - The bot automatically scans and identifies animations in the Roblox files
+2. **Reuploading** - Each animation is processed and republished to ensure compatbility
+3. **Completion** - Your game has working animations.
 
 ## ⚙️ Configuration
 The tool requires minimal setup:
