@@ -12,7 +12,9 @@
 - ✅ Scrape animation objects in the game file
 - ✅ Fetch animation metadata, file contents, and asset types
 - ✅ Upload multiple animations in a concurrent system; using [semaphore](https://docs.rs/semaphore/latest/semaphore/)
-- ❌ Writing animations back to workspace or script source (not yet implemented)
+- ✅ Writing animations back to workspace or script source 
+- ❌ Flags and user configuration for easy use
+- ❌ Rename the Animations as the same as the ones it replaces
 
 
 
@@ -38,18 +40,19 @@
 ---
 
 
-### 🚀 Overview (BETA)
+### 🐕 Overview (BETA)
 
-**Animation Spoofing** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoofs animations, and republish them to ensure functionality when you publish your game.
+**Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoofs animations, and republish them to ensure functionality when you publish your game.
 
 ---
-### ✨ Upcoming Key Features
+### Upcoming Key Features
 
-- 🔄 **Automatic Animation Spoofing** - No manual intervention required and all through the terminal
-- ✅ **Group Support** - Supports Group publishing
-- 🛡️ **Uses .ROBLOSECURITY Cookie** - Works directly with your Roblox cookie authentication
-- 🎯 **Minimum Configuration** - Just provide info like cookie and group id and let it work
-- 🦀 **Fast and Efficient** - This program will be completely free, and will be as efficient as possible.
+- **Automatic Animation Spoofing** - No manual intervention required and all through the terminal
+- **Group Support** - Supports Group publishing
+
+- **Uses .ROBLOSECURITY Cookie** - Works directly with your Roblox cookie authentication
+- **Minimum Configuration** - Just provide info like cookie and group id and let it work
+-  **Fast and Efficient** - This program will be completely free, and will be as efficient as possible.
 ---
 
 
@@ -61,10 +64,9 @@
 - Valid roblox authentication cookie
 - .RBLX or Studio file with animations
 
-## 🎯 How It Works
-1. **Authentication** - Uses the provided cookie for publishing APIs
+## 💻 How It Works
 2. **File Scanning** - The bot automatically scans and identifies animations in the Roblox files
-3. **Spoofing** - Each animation is processed and republished to ensure compatbility
+3. **Reuploading** - Each animation is processed and republished to ensure compatbility
 5. **Completion** - Your game has working animations.
 ---
 
@@ -77,30 +79,24 @@ The tool requires minimal setup:
 
 ## 🚨 Important Notes
 
-### Security & Privacy
-- Your Roblox cookie is only used for authentication purposes
-- Animations wont work if you dont use --group flag and then upload the game to a group
-
 ### Disclaimer
 - Users are responsible for compliance with Roblox's policies
 - Always ask/give credit to animators.
+- Animations wont work if you dont use --group flag and then upload the game to a group
+- Your Roblox cookie is only used for authentication purposes
+
+
+ - This is my first Rust project, I'm still learning Rust. So any contributions or suggestions will be accepted.
 
 ---
 
-## 🤝 Contributing
-
-This is my first Rust project, I'm still learning Rust. So any contributions or suggestions will be accepted.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Credit 🤝 
+## 🤝 Credit 
 Im using a roblox wrapper; [Roboat](https://github.com/fekie/roboat) to achieve a more stable and better development with roblox's changes.
+
+For researching rust ive been using the official [rust book](https://doc.rust-lang.org/book/).
+
+having AI (Claude) only help with ONLY the readme, lifetimes, and some refactors for optimization, as this is an educational project for me.
+
 
 ---
 
