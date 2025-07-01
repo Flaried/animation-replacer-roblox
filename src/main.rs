@@ -31,7 +31,7 @@ async fn main() {
 
     // Build the parser with the roboat client
     let builder = StudioParser::builder()
-        .file_path(file_path)
+        .file_path(&file_path)
         .roblosecurity(&args.cookie);
 
     let mut parser = match builder.build() {
@@ -46,7 +46,7 @@ async fn main() {
     let workspace_animations = parser.workspace_animations();
     match workspace_animations.await {
         Ok(mut animations) => {
-            println!("Animations: {:?}", animations);
+            // println!("Animations: {:?}", animations);
             all_animations.append(&mut animations);
         }
         Err(e) => {
@@ -58,7 +58,7 @@ async fn main() {
 
     match script_animations.await {
         Ok(mut animations) => {
-            println!("Animations: {:?}", animations);
+            // println!("Animations: {:?}", animations);
             all_animations.append(&mut animations);
         }
         Err(e) => {
@@ -81,5 +81,9 @@ async fn main() {
         }
     }
 
-    parser.save_to_rbxl("~/Documents/Place2.rbxl").unwrap();
+    if let Some(output) = args.output {
+        parser.save_to_rbxl(output).unwrap();
+    } else {
+        parser.save_to_rbxl(file_path).unwrap();
+    }
 }
