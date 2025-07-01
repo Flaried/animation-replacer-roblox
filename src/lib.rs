@@ -9,6 +9,9 @@ pub mod studio;
 /// A module for handling parsing and editing on scripts, in studio files.
 pub mod script;
 
+pub use animation::uploader::AnimationUploader;
+pub use studio::dom_parser::StudioParserBuilder;
+
 /// Represents an animation with its instance and ID.
 #[derive(Debug, Clone)]
 pub struct Animation<'a> {

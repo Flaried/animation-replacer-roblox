@@ -2,7 +2,7 @@ use crate::StudioParser;
 use rbx_dom_weak::types::Variant;
 use regex::Regex;
 use roboat::RoboatError;
-use roboat::assetdelivery::request_types::AssetBatchResponse;
+use roboat::assetdelivery::AssetBatchResponse;
 use std::collections::HashSet;
 use ustr::Ustr;
 

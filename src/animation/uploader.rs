@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use roboat::ClientBuilder;
 use roboat::RoboatError;
-use roboat::assetdelivery::request_types::AssetBatchPayload;
-use roboat::assetdelivery::request_types::AssetBatchResponse;
+use roboat::assetdelivery::AssetBatchPayload;
+use roboat::assetdelivery::AssetBatchResponse;
 use roboat::ide::ide_types::NewAnimation;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -81,7 +81,7 @@ impl AnimationUploader {
         let mut return_list: Vec<AssetBatchResponse> = Vec::new();
         let batch_size = 250;
         let id_batches = asset_ids.chunks(batch_size);
-        const MAX_RETRIES: i32 = 3;
+        const MAX_RETRIES: i32 = 9;
 
         for batch in id_batches {
             let payloads: Vec<AssetBatchPayload> = batch
@@ -169,7 +169,7 @@ impl AnimationUploader {
                     let _permit = semaphore.acquire().await.unwrap();
 
                     println!(
-                        "Processing animation {}/{} ({} remaining)",
+                        "Reuploading animation {}/{} ({} remaining)",
                         index + 1,
                         total_animations,
                         total_animations - (index + 1)
@@ -204,11 +204,11 @@ impl AnimationUploader {
 }
 
 mod internal {
-    use crate::animation::RoboatError;
     use bytes::Bytes;
     use roboat::ClientBuilder;
-    use roboat::assetdelivery::request_types::AssetBatchPayload;
-    use roboat::assetdelivery::request_types::AssetBatchResponse;
+    use roboat::RoboatError;
+    use roboat::assetdelivery::AssetBatchPayload;
+    use roboat::assetdelivery::AssetBatchResponse;
     use tokio::time;
 
     use crate::animation::uploader::AnimationUploader;

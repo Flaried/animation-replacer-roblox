@@ -5,10 +5,7 @@ use ustr::Ustr;
 
 impl StudioParser {
     /// Updates animation IDs in script source code using the provided mapping.
-    pub fn update_script_animations(
-        &mut self,
-        animation_mapping: &HashMap<String, String>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn update_script_animations(&mut self, animation_mapping: &HashMap<String, String>) {
         // Collect script refs first to avoid borrow checker issues
         let script_refs = self.get_script_refs();
 
@@ -32,6 +29,5 @@ impl StudioParser {
                 }
             }
         }
-        Ok(())
     }
 }

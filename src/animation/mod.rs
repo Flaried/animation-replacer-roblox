@@ -1,8 +1,8 @@
+use crate::AnimationUploader;
 use crate::StudioParser;
 use roboat::RoboatError;
-use roboat::assetdelivery::request_types::AssetBatchResponse;
+use roboat::assetdelivery::AssetBatchResponse;
 pub mod uploader;
-use crate::animation::uploader::AnimationUploader;
 
 impl StudioParser {
     /// Creates an AnimationUploader from this StudioParser's roblosecurity cookie
