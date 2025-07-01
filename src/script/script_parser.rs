@@ -1,5 +1,3 @@
-use crate::Script;
-use crate::ScriptType;
 use crate::StudioParser;
 use rbx_dom_weak::types::Variant;
 use regex::Regex;

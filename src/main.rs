@@ -8,7 +8,6 @@ use roboat::assetdelivery::request_types::AssetBatchResponse;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
     dotenv().ok();
 
     let file_path = shellexpand::tilde("~/Documents/Place1.rbxl");
