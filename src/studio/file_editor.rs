@@ -1,11 +1,7 @@
+use crate::StudioParser;
 use rbx_binary::to_writer;
-use rbx_dom_weak::Instance;
-use rbx_types::Variant;
 use std::fs::File;
 use std::path::Path;
-use ustr::Ustr;
-
-use crate::StudioParser;
 
 impl StudioParser {
     /// Saves the current DOM state to a .rbxl file
