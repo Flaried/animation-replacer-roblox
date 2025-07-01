@@ -3,7 +3,7 @@ use rbx_binary::from_reader;
 use rbx_types::Variant;
 use regex::Regex;
 use roboat::RoboatError;
-use roboat::assetdelivery::request_types::AssetBatchResponse;
+use roboat::assetdelivery::AssetBatchResponse;
 use std::fs::File;
 use std::path::Path;
 use ustr::Ustr;

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use animation_replace_roblox::StudioParser;
 use animation_replace_roblox::animation::uploader::AnimationUploader;
 use clap::Parser;
-use roboat::assetdelivery::request_types::AssetBatchResponse;
+use roboat::assetdelivery::AssetBatchResponse;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -72,9 +72,12 @@ async fn main() {
         .await
     {
         Ok(animation_mapping) => {
-            if let Err(e) = parser.update_script_animations(&animation_mapping) {
-                eprintln!("Failed to update script animations: {:?}", e);
-            }
+            // TODO: Instead of scanning and looping through a HashMap of u64, Make a HashMap of
+            // Animations, that includes instances, that way one loop will handle it all.
+            // Also optimize and delete values after updating them.
+
+            parser.update_script_animations(&animation_mapping);
+            parser.update_game_animations(&animation_mapping);
         }
         Err(e) => {
             eprintln!("Failed to upload animations: {:?}", e);
