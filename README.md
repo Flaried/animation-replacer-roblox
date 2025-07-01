@@ -9,6 +9,9 @@
 ---
 >    ⚠️ Disclaimer: In active development, so it wont replace animation instances in the game, only the animation Ids in the scripts.
 
+### 🐕 Overview (BETA)
+**Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation functionality when you publish your game.
+
 ## 📝 Development Status
 - ✅ Scrape animations in lua scripts
 - ✅ Scrape animation objects in the game file
@@ -22,7 +25,7 @@
 
 
 
-### 📦 Installation
+## 📦 Installation
 
 1. **Clone the repository**
    ```bash
@@ -40,76 +43,48 @@
 
 To run the tool, you’ll need your Roblox ``.ROBLOSECURITY`` cookie.
 This is required to authenticate your account for uploading animations.
-
 >    ⚠️ Important: Never share your Roblox cookie. It grants full access to your account.
 >    If you're unsure how to retrieve it, here’s a tutorial:
 >    [How to get your Roblox cookie (YouTube)](https://www.youtube.com/watch?v=zkSnBV7oOZM)
 
-If you're concerned about using your main account, consider creating an alternate account, adding it as an admin to your group, and uploading from there.
+> If you're concerned about using your main account, consider creating an alternate account, adding it as an admin to your group, and uploading from there.
+
+You will also need to open Roblox Studio and save the game as a file for the Animation Replacer.
+> Recommended to use the ``--ouput`` flag to avoid data loss if the game corrupts. 
 
    ```bash
-   cargo run -- --cookie "COOKIEHERE" --file "example.rbxl"
+   cargo run -- --cookie "COOKIEHERE" --file "example.rbxl" --ouput "output.rbxl"
    ```
+<div align="center">
+⚠️ Animations won't function in games owned by a group ⚠️
+</div align="center">
 
-> ⚠️ Tip:
 >
 > If you're uploading the game through a group, be sure to include the ``--group "GROUP_ID"`` flag.
->
-> Recommended to use the ``--ouput "ouput.rbxl"`` flag to avoid data loss if the game corrupts. 
+
 <!-- > ⚠️ This project is currently under active development.   -->
 <!-- > Installation instructions will be provided in a future release. ⚠️ -->
 ---
-
-
-### 🐕 Overview (BETA)
-
-**Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoofs animations, and republish them to ensure functionality when you publish your game.
-
----
-### Upcoming Key Features
-
-- **Automatic Animation Spoofing** - No manual intervention required and all through the terminal
-- **Group Support** - Supports Group publishing
-
-- **Uses .ROBLOSECURITY Cookie** - Works directly with your Roblox cookie authentication
-- **Minimum Configuration** - Just provide info like cookie and group id and let it work
--  **Fast and Efficient** - This program will be completely free, and will be as efficient as possible.
----
-
-
-## 🛠️ Getting Started
-
-### Prerequisites
-
-- [Rust](https://rustup.rs/) (latest stable version)
-- Valid roblox authentication cookie
-- .RBLX or Studio file with animations
 
 ## 💻 How It Works
 2. **File Scanning** - The bot automatically scans and identifies animations in the Roblox files
 3. **Reuploading** - Each animation is processed and republished to ensure compatbility
 5. **Completion** - Your game has working animations.
----
 
 ## ⚙️ Configuration
 The tool requires minimal setup:
 - **Roblox Cookie (REQUIRED)**: Your authentication token for accessing Roblox services
-- **Target Files (Optional)**: Automatically scan root directory if no --target flag
+- **Target File (REQUIRED)**: --file requires the path of the file to scan
 - **Group Id (Optional)**: Upload to a group with --group flag
----
+- **Output (Optional)**: Use the --ouput flag to avoid data loss
 
 ## 🚨 Important Notes
 
 ### Disclaimer
 - Users are responsible for compliance with Roblox's policies
 - Always ask/give credit to animators.
-- Animations wont work if you dont use --group flag and then upload the game to a group
 - Your Roblox cookie is only used for authentication purposes
 
-
- - This is my first Rust project, I'm still learning Rust. So any contributions or suggestions will be accepted.
-
----
 
 ## 🤝 Credit 
 Im using a roblox wrapper; [Roboat](https://github.com/fekie/roboat) to achieve a more stable and better development with roblox's changes.
@@ -122,6 +97,7 @@ having AI (Claude) only help with ONLY the readme, lifetimes, and some refactors
 ---
 
 <div align="center">
+   This is my first Rust project, I'm still learning Rust. So any contributions or suggestions will be accepted.
 
 **⭐ If this project helped you, consider giving it a star! ⭐**
 
