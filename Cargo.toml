@@ -21,3 +21,4 @@ log = "0.4.27"
 
 clap = { version = "4.1.13", features = ["derive"] }
 reqwest = "0.12.21"
+anyhow = "1.0.98"

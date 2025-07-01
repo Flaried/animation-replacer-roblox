@@ -81,11 +81,20 @@ impl StudioParserBuilder {
     }
 
     /// Builds the StudioParser. File path is required.
-    pub fn build(self) -> Result<StudioParser, Box<dyn std::error::Error>> {
-        let file_path = self.file_path.ok_or("File path is required")?;
-        let expanded_path = shellexpand::full(&file_path)?;
-        let file = File::open(expanded_path.as_ref())?;
-        let dom = from_reader(file)?;
+    pub fn build(self) -> Result<StudioParser, anyhow::Error> {
+        let file_path = self
+            .file_path
+            .ok_or_else(|| anyhow::anyhow!("File path is required"))?;
+
+        let expanded_path = shellexpand::full(&file_path)
+            .map_err(|e| anyhow::anyhow!("Failed to expand path '{}': {}", file_path, e))?;
+
+        let file = File::open(expanded_path.as_ref())
+            .map_err(|e| anyhow::anyhow!("Failed to open file '{}': {}", expanded_path, e))?;
+
+        let dom =
+            from_reader(file).map_err(|e| anyhow::anyhow!("Failed to parse .rbxl DOM: {}", e))?;
+
         Ok(StudioParser {
             roblosecurity: self.roblosecurity,
             dom,

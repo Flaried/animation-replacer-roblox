@@ -57,10 +57,7 @@ impl StudioParser {
     ///     .build()?;
     /// parser.save_to_rbxl("output.rbxl")?;
     /// ```
-    pub fn save_to_rbxl<P: AsRef<Path>>(
-        &self,
-        file_path: P,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_to_rbxl<P: AsRef<Path>>(&self, file_path: P) -> Result<(), anyhow::Error> {
         let expanded_path = shellexpand::full(file_path.as_ref().to_str().unwrap())?;
         let file = File::create(expanded_path.as_ref())?;
 
