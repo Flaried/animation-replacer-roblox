@@ -43,23 +43,27 @@
 
 To run the tool, you’ll need your Roblox ``.ROBLOSECURITY`` cookie.
 This is required to authenticate your account for uploading animations.
->    ⚠️ Important: Never share your Roblox cookie. It grants full access to your account.
+
+>    [!WARNING]
+>    Never share your Roblox cookie. It grants full access to your account.
 >    If you're unsure how to retrieve it, here’s a tutorial:
 >    [How to get your Roblox cookie (YouTube)](https://www.youtube.com/watch?v=zkSnBV7oOZM)
-
+> 
 > If you're concerned about using your main account, consider creating an alternate account, adding it as an admin to your group, and uploading from there.
 
 You will also need to open Roblox Studio and save the game as a file for the Animation Replacer.
+> [!NOTE]
 > Recommended to use the ``--ouput`` flag to avoid data loss if the game corrupts. 
 
    ```bash
    cargo run -- --cookie "COOKIEHERE" --file "example.rbxl" --ouput "output.rbxl"
    ```
+
 <div align="center">
 ⚠️ Animations won't function in games owned by a group ⚠️
 </div align="center">
 
->
+> [!NOTE]
 > If you're uploading the game through a group, be sure to include the ``--group "GROUP_ID"`` flag.
 
 <!-- > ⚠️ This project is currently under active development.   -->
@@ -102,3 +106,4 @@ having AI (Claude) only help with ONLY the readme, lifetimes, and some refactors
 **⭐ If this project helped you, consider giving it a star! ⭐**
 
 </div>
+
