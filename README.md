@@ -7,36 +7,56 @@
 
 
 ---
+>    ⚠️ Disclaimer: In active development, so it wont replace animation instances in the game, only the animation Ids in the scripts.
+
 ## 📝 Development Status
 - ✅ Scrape animations in lua scripts
 - ✅ Scrape animation objects in the game file
 - ✅ Fetch animation metadata, file contents, and asset types
 - ✅ Upload multiple animations in a concurrent system; using [semaphore](https://docs.rs/semaphore/latest/semaphore/)
-- ✅ Writing animations back to workspace or script source 
-- ❌ Flags and user configuration for easy use
-- ❌ Rename the Animations as the same as the ones it replaces
+- ✅ Writing animations back to script source 
+- ✅ Flags and user configuration for easy use
+- ❌ Replace the animation instances in-game (Only replaces scripts for now)  
+- ❌ Rename the Animations as the same as the ones it replaces (Requires extra API calls for scripts)
+
 
 
 
 ### 📦 Installation
 
-<!-- 1. **Clone the repository** -->
-<!--    ```bash -->
-<!--    git clone https://github.com/yourusername/animation-replacer-roblox.git -->
-<!--    cd animation-replacer-roblox -->
-<!--    ``` -->
-<!--  -->
-<!-- 2. **Build the project** -->
-<!--    ```bash -->
-<!--    cargo build --release -->
-<!--    ``` -->
-<!--  -->
-<!-- 3. **Run the application** -->
-<!--    ```bash -->
-<!--    cargo run -->
-<!--    ``` -->
-> ⚠️ This project is currently under active development.  
-> Installation instructions will be provided in a future release. ⚠️
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/animation-replacer-roblox.git
+   cd animation-replacer-roblox
+   ```
+
+2. **Build the project**
+   ```bash
+   cargo build --release
+   ```
+
+3. **Run the application**
+
+To run the tool, you’ll need your Roblox ``.ROBLOSECURITY`` cookie.
+This is required to authenticate your account for uploading animations.
+
+>    ⚠️ Important: Never share your Roblox cookie. It grants full access to your account.
+>    If you're unsure how to retrieve it, here’s a tutorial:
+>    [How to get your Roblox cookie (YouTube)](https://www.youtube.com/watch?v=zkSnBV7oOZM)
+
+If you're concerned about using your main account, consider creating an alternate account, adding it as an admin to your group, and uploading from there.
+
+   ```bash
+   cargo run -- --cookie "COOKIEHERE" --file "example.rbxl"
+   ```
+
+> ⚠️ Tip:
+>
+> If you're uploading the game through a group, be sure to include the ``--group "GROUP_ID"`` flag.
+>
+> Recommended to use the ``--ouput "ouput.rbxl"`` flag to avoid data loss if the game corrupts. 
+<!-- > ⚠️ This project is currently under active development.   -->
+<!-- > Installation instructions will be provided in a future release. ⚠️ -->
 ---
 
 
