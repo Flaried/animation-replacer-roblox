@@ -7,8 +7,6 @@
 **Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation functionality when you publish your game.
 
 ---
-> [!WARNING]
->  In active development, so it wont replace animation instances in the game, only the animation Ids in the scripts.
 
 
 ## 📝 Development Status
@@ -18,7 +16,7 @@
 - ✅ Upload multiple animations in a concurrent system; using [semaphore](https://docs.rs/semaphore/latest/semaphore/)
 - ✅ Writing animations back to script source 
 - ✅ Flags and user configuration for easy use
-- ❌ Replace the animation instances in-game (Only replaces scripts for now)  
+- ✅ Replace the animation instances in-game (Only replaces scripts for now)  
 - ❌ Rename the Animations as the same as the ones it replaces (Requires extra API calls for scripts)
 
 
