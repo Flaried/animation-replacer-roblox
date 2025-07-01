@@ -20,16 +20,23 @@ impl StudioParser {
         &mut self,
     ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
         println!("Fetching animations in scripts.");
-        let scripts = self.all_scripts();
+        let script_refs = self.get_script_refs();
+
         let pattern = Regex::new(r"\d{5,}").unwrap();
 
         // Collect and deduplicate all IDs from all scripts
         let mut all_ids: HashSet<u64> = HashSet::new();
-        for script in &scripts {
-            let ids_in_script = pattern
-                .find_iter(&script.source)
-                .filter_map(|m| m.as_str().parse::<u64>().ok());
-            all_ids.extend(ids_in_script);
+        for script_ref in &script_refs {
+            if let Some(instance) = self.dom.get_by_ref(*script_ref) {
+                if let Some(Variant::String(source)) =
+                    instance.properties.get(&Ustr::from("Source"))
+                {
+                    let ids_in_script = pattern
+                        .find_iter(source)
+                        .filter_map(|m| m.as_str().parse::<u64>().ok());
+                    all_ids.extend(ids_in_script);
+                }
+            }
         }
 
         // Convert to Vec and fetch assets
@@ -37,27 +44,18 @@ impl StudioParser {
         println!("Got all animations from script... Sending them to Roblox API");
         self.fetch_animation_assets(id_list).await
     }
-
-    /// Gets every script and source code from the .rbxl file
-    pub fn all_scripts(&self) -> Vec<Script<'_>> {
-        let mut scripts = Vec::new();
-        for instance in self.dom.descendants() {
-            let script_type = ScriptType::from_class_name(&instance.class);
-            if let ScriptType::Script | ScriptType::LocalScript | ScriptType::ModuleScript =
-                script_type
-            {
-                if let Some(Variant::String(source)) =
-                    instance.properties.get(&Ustr::from("Source"))
-                {
-                    scripts.push(Script {
-                        instance: instance,
-                        source: source.clone(),
-                        script_type: script_type,
-                    });
-                }
-            }
-        }
-        scripts
+    /// Gets referents for all script instances (Script, LocalScript, ModuleScript)
+    pub fn get_script_refs(&self) -> Vec<rbx_dom_weak::types::Ref> {
+        self.dom
+            .descendants()
+            .filter(|instance| {
+                matches!(
+                    instance.class.as_str(),
+                    "Script" | "LocalScript" | "ModuleScript"
+                )
+            })
+            .map(|instance| instance.referent())
+            .collect()
     }
 }
 
