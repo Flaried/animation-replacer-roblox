@@ -1,17 +1,15 @@
 # 🎭 Animation Replacer for Roblox (WIP)
-*Automatic Animation Replacer*
 
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Roblox](https://img.shields.io/badge/Roblox-00A2FF?style=for-the-badge&logo=roblox&logoColor=white)](https://www.roblox.com/)
 
 
+**Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation functionality when you publish your game.
 
 ---
 > [!WARNING]
 >  In active development, so it wont replace animation instances in the game, only the animation Ids in the scripts.
 
-### 🐕 Overview (BETA)
-**Animation Spoofing/Reuploading** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation functionality when you publish your game.
 
 ## 📝 Development Status
 - ✅ Scrape animations in lua scripts
