@@ -24,7 +24,7 @@ impl AnimationUploader {
     ///
     /// ```rust
     /// // Re-upload a single animation
-    /// parser.reupload_animation(123456789).await?;
+    /// parser.reupload_animation(123456789, 21565414243).await?;
     ///
     /// // Batch process all animations found in scripts
     /// let animation_ids = parser.find_all_animations().await?;
@@ -36,14 +36,18 @@ impl AnimationUploader {
     ///
     /// Requires roblosecurity cookie. Does not handle rate limiting automatically.
     ///
-    pub async fn upload_animation(&self, animation_data: Bytes) -> Result<String, RoboatError> {
+    pub async fn upload_animation(
+        &self,
+        animation_data: Bytes,
+        group_id: Option<u64>,
+    ) -> Result<String, RoboatError> {
         let client = ClientBuilder::new()
             .roblosecurity(self.roblosecurity.clone())
             .build();
 
         let animation = NewAnimation {
-            group_id: None,
-            name: "roboatTest630".to_string(),
+            group_id: group_id,
+            name: "roboatTestv2".to_string(),
             description: "This is a roboat example".to_string(),
             animation_data,
         };
@@ -146,6 +150,7 @@ impl AnimationUploader {
     pub async fn reupload_all_animations(
         self: Arc<Self>, // Change from &self to Arc<Self>
         animations: Vec<AssetBatchResponse>,
+        group_id: Option<u64>,
     ) -> Result<HashMap<String, String>, RoboatError> {
         // Setup 5 Semaphore permits
         // NOTE: maybe set this as an arg
@@ -162,9 +167,13 @@ impl AnimationUploader {
 
             if let Some(location) = location_string {
                 let semaphore = semaphore.clone();
-                let self_arc = Arc::clone(&self); // Each task gets access to the client methods
+                // Each task gets access to the client methods
+                let self_arc = Arc::clone(&self);
+
+                // Set the variables before spawning task
                 let location = location.to_string();
                 let request_id = animation.request_id.clone();
+                let group_id = group_id.clone();
 
                 // The task goes into Tokio's scheduler queue and will run when a thread is available
                 let task = tokio::spawn(async move {
@@ -180,7 +189,8 @@ impl AnimationUploader {
 
                     // Only 5 of these operations happen simultaneously across ALL tasks
                     let animation_file = self_arc.file_bytes_from_url(location).await?;
-                    let new_animation_id = self_arc.upload_animation(animation_file).await?;
+                    let new_animation_id =
+                        self_arc.upload_animation(animation_file, group_id).await?;
 
                     Ok::<_, RoboatError>((request_id, new_animation_id))
                 });
