@@ -1,11 +1,9 @@
 use bytes::Bytes;
-use core::time;
 use roboat::ClientBuilder;
 use roboat::RoboatError;
 use roboat::assetdelivery::request_types::AssetBatchPayload;
 use roboat::assetdelivery::request_types::AssetBatchResponse;
 use roboat::ide::ide_types::NewAnimation;
-use roboat::reqwest;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -13,23 +11,30 @@ use tokio::sync::Semaphore;
 pub struct AnimationUploader {
     pub roblosecurity: String,
 }
+
 impl AnimationUploader {
-    /// Creates a new AnimationUploader with the given cookie.
+    /// Creates a new AnimationUploader with a roblosecurity cookie.
     pub fn new(roblosecurity: String) -> Self {
         Self { roblosecurity }
     }
 
     /// Uploads animation data to Roblox.
     ///
-    /// # Examples
+    /// * Parameters
+    /// Animation_Data: Bytes
+    /// Group Id to upload to (Option)
+    ///
+    /// * Returns
+    /// New Asset Id (Sucess)
+    /// RoboatError (Failed)
+    ///
+    /// * Examples
     ///
     /// ```rust
     /// let uploader = AnimationUploader::new(cookie);
-    /// let animation_data = std::fs::read("animation.rbxm")?;
-    /// let new_id = uploader.upload_animation(animation_data.into(), Some(123456)).await?;
+    /// let data = std::fs::read("animation.rbxm")?.into();
+    /// let id = uploader.upload_animation(data, Some(123456)).await?;
     /// ```
-    ///
-
     pub async fn upload_animation(
         &self,
         animation_data: Bytes,
@@ -47,107 +52,101 @@ impl AnimationUploader {
         };
 
         let new_asset_id_string = client.upload_new_animation(animation).await?;
-
         Ok(new_asset_id_string)
     }
 
-    /// Takes in a batch of up to 250 assets and returns all the details to them.
-    /// It will return a vector of AssetBatchResponse
-    /// Also creates a timeout for the hanging API error from this endpoint.
-    /// Requires Cookie
-    pub async fn check_asset_info(
-        &self,
-        asset_id: Vec<AssetBatchPayload>,
-    ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
-        // let proxy_url = "http://localhost:8080";
-        // let proxy = Proxy::all(proxy_url).expect("Proxy error");
-        let timeout_client = reqwest::ClientBuilder::new()
-            // .proxy(proxy)
-            .timeout(time::Duration::new(3, 0))
-            .build()
-            .map_err(RoboatError::ReqwestError)?;
-
-        let client = ClientBuilder::new()
-            .roblosecurity(
-                self.roblosecurity.clone(), // .expect("roblosecurity cookie required"),
-            )
-            .reqwest_client(timeout_client)
-            .build();
-        // Call get_asset_info and handle the result.
-        match client.post_asset_metadata_batch(asset_id).await {
-            Ok(x) => Ok(Some(x)),
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Reuploads a collection of animations by downloading them from their existing locations
-    /// and uploading them as new assets.
+    /// Fetches animation assets from a list of asset IDs
     ///
-    /// This function processes animations concurrently with a maximum of 5 simultaneous uploads
-    /// to avoid overwhelming the server. It maintains a mapping between original animation IDs
-    /// and their newly uploaded counterparts.
+    /// * Notes
+    /// This function will divide the list into 250 chunks and post to the API
+    /// The AssetBatchResponse CAN contain errors (One asset could be private etc.)
     ///
-    /// # Arguments
-    ///
-    /// * `animations` - A vector of `AssetBatchResponse` objects containing animation metadata
-    ///                  and download locations. Each animation should have at least one location
-    ///                  in its `locations` field.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(HashMap<String, String>)` - A mapping where keys are original animation request IDs
-    ///                                   and values are the new animation IDs after reupload
-    /// * `Err(RoboatError)` - Returns an error if:
-    ///   - Any animation download fails
-    ///   - Any animation upload fails  
-    ///   - A tokio task panics during execution
-    ///
-    /// # Behavior
-    ///
-    /// - Skips animations that don't have a valid location URL
-    /// - Processes animations concurrently with a semaphore limiting to 5 simultaneous operations
-    /// - Prints progress information to stdout showing current progress and remaining items
-    /// - Only includes animations with valid `request_id` values in the returned mapping
+    /// * Returns
+    /// Returns all the Asset Responses (Can have errors)
+    /// If the roblox cookie is invalid it will return a roboat error.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// let animations = vec![
-    ///     AssetBatchResponse {
-    ///         request_id: Some("anim_123".to_string()),
-    ///         locations: Some(vec![
-    ///             AssetLocation {
-    ///                 location: Some("https://example.com/animation1.rbxm".to_string()),
-    ///             }
-    ///         ]),
-    ///     },
-    ///     // ... more animations
-    /// ];
-    ///
-    /// let client = Arc::new(MyClient::new());
-    /// let result = client.reupload_all_animations(animations).await?;
-    ///
-    /// // result now contains mapping: {"anim_123" => "new_anim_456"}
+    /// let ids = vec![123456, 789012];
+    /// let animations = uploader.fetch_animation_assets(ids).await?;
     /// ```
+    pub async fn fetch_animation_assets(
+        &self,
+        asset_ids: Vec<u64>,
+    ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
+        use roboat::catalog::AssetType;
+        use tokio::time::{Duration, sleep};
+
+        let mut return_list: Vec<AssetBatchResponse> = Vec::new();
+        let batch_size = 250;
+        let id_batches = asset_ids.chunks(batch_size);
+        const MAX_RETRIES: i32 = 3;
+
+        for batch in id_batches {
+            let payloads: Vec<AssetBatchPayload> = batch
+                .iter()
+                .map(|&asset_id| AssetBatchPayload {
+                    asset_id: Some(asset_id.to_string()),
+                    request_id: Some(asset_id.to_string()),
+                    ..Default::default()
+                })
+                .collect();
+
+            let mut attempts = 0;
+            loop {
+                match self.check_asset_info(payloads.clone()).await {
+                    Ok(Some(mut result)) => {
+                        result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
+                        return_list.append(&mut result);
+                        break;
+                    }
+                    Ok(None) => break,
+                    Err(e) => {
+                        eprintln!("Error checking animation types: {:?}", e);
+                        if let RoboatError::ReqwestError(ref reqwest_err) = e {
+                            if reqwest_err.is_timeout() && attempts < MAX_RETRIES {
+                                attempts += 1;
+                                println!("Timeout, retrying {}/{}...", attempts, MAX_RETRIES);
+                                sleep(Duration::from_secs(2)).await;
+                                continue;
+                            }
+                        } else if matches!(e, RoboatError::MalformedResponse) {
+                            if attempts < MAX_RETRIES {
+                                attempts += 1;
+                                println!(
+                                    "Malformed request, retrying {}/{}...",
+                                    attempts, MAX_RETRIES
+                                );
+                                sleep(Duration::from_secs(2)).await;
+                                continue;
+                            }
+                        }
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        Ok(return_list)
+    }
+
+    /// Reuploads animations concurrently with semaphore limiting.
     ///
-    /// # Concurrency
+    /// * Notes
+    /// Uses Semaphore for multiproccessing, default it set at 5 semphores
     ///
-    /// This function uses a semaphore to limit concurrent operations to 5 simultaneous uploads.
-    /// This prevents overwhelming the target server while still providing reasonable parallelism
-    /// for faster processing of large animation batches.
     ///
-    /// # Error Handling
-    ///
-    /// - Individual animation processing errors are propagated immediately, stopping all processing
-    /// - Tokio task join errors are converted to `RoboatError::InternalServerError`
-    /// - Animations without valid locations or request IDs are silently skipped
+    /// # Example
+    /// ```rust
+    /// let animtions: Vec<AssetBatchResponse> = Vec::New(EXAMPLE)
+    /// let uploader = Arc::new(AnimationUploader::new(cookie));
+    /// let mapping = uploader.reupload_all_animations(animations, Some(group_id)).await?;
+    /// ```
     pub async fn reupload_all_animations(
-        self: Arc<Self>, // Change from &self to Arc<Self>
+        self: Arc<Self>,
         animations: Vec<AssetBatchResponse>,
         group_id: Option<u64>,
     ) -> Result<HashMap<String, String>, RoboatError> {
-        // Setup 5 Semaphore permits
-        // NOTE: maybe set this as an arg
         let semaphore = Arc::new(Semaphore::new(5));
         let mut tasks = Vec::new();
         let total_animations = animations.len();
@@ -161,17 +160,12 @@ impl AnimationUploader {
 
             if let Some(location) = location_string {
                 let semaphore = semaphore.clone();
-                // Each task gets access to the client methods
                 let self_arc = Arc::clone(&self);
-
-                // Set the variables before spawning task
                 let location = location.to_string();
                 let request_id = animation.request_id.clone();
                 let group_id = group_id.clone();
 
-                // The task goes into Tokio's scheduler queue and will run when a thread is available
                 let task = tokio::spawn(async move {
-                    // Blocks the thread until theres an active permit
                     let _permit = semaphore.acquire().await.unwrap();
 
                     println!(
@@ -181,7 +175,6 @@ impl AnimationUploader {
                         total_animations - (index + 1)
                     );
 
-                    // Only 5 of these operations happen simultaneously across ALL tasks
                     let animation_file = self_arc.file_bytes_from_url(location).await?;
                     let new_animation_id =
                         self_arc.upload_animation(animation_file, group_id).await?;
@@ -195,7 +188,6 @@ impl AnimationUploader {
 
         let mut animation_hashmap = HashMap::new();
 
-        // Collect all the tasks results
         for task in tasks {
             match task.await {
                 Ok(Ok((Some(request_id), new_animation_id))) => {
@@ -203,7 +195,7 @@ impl AnimationUploader {
                 }
                 Ok(Err(e)) => return Err(e),
                 Err(_) => return Err(RoboatError::InternalServerError),
-                _ => {} // Skip if request_id is None
+                _ => {}
             }
         }
 
@@ -212,24 +204,51 @@ impl AnimationUploader {
 }
 
 mod internal {
+    use crate::animation::RoboatError;
     use bytes::Bytes;
-    use roboat::{RoboatError, reqwest};
-    use tokio::time::sleep;
+    use roboat::ClientBuilder;
+    use roboat::assetdelivery::request_types::AssetBatchPayload;
+    use roboat::assetdelivery::request_types::AssetBatchResponse;
+    use tokio::time;
 
-    use crate::animation::AnimationUploader;
-    use roboat::assetdelivery::request_types::{AssetBatchPayload, AssetBatchResponse};
-    use roboat::catalog::AssetType;
-    use tokio::time::Duration;
-
-    use reqwest::Client;
-    use tokio::time::timeout;
-
-    const MAX_RETRIES: usize = 3;
-    const TIMEOUT_SECS: u64 = 1;
+    use crate::animation::uploader::AnimationUploader;
 
     impl AnimationUploader {
+        /// Checks asset information for up to 250 assets.
+        pub async fn check_asset_info(
+            &self,
+            asset_id: Vec<AssetBatchPayload>,
+        ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
+            let timeout_client = reqwest::ClientBuilder::new()
+                .timeout(time::Duration::new(3, 0))
+                .build()
+                .map_err(RoboatError::ReqwestError)?;
+
+            let client = ClientBuilder::new()
+                .roblosecurity(self.roblosecurity.clone())
+                .reqwest_client(timeout_client)
+                .build();
+
+            match client.post_asset_metadata_batch(asset_id).await {
+                Ok(x) => Ok(Some(x)),
+                Err(e) => Err(e),
+            }
+        }
+
         /// Downloads file bytes from a URL with retry logic.
+        ///
+        /// # Examples
+        ///
+        /// ```rust
+        /// let bytes = uploader.file_bytes_from_url("https://example.com/file.rbxm".to_string()).await?;
+        /// ```
         pub async fn file_bytes_from_url(&self, url: String) -> Result<Bytes, RoboatError> {
+            use reqwest::Client;
+            use tokio::time::{Duration, timeout};
+
+            const MAX_RETRIES: usize = 3;
+            const TIMEOUT_SECS: u64 = 1;
+
             let client = Client::new();
 
             for attempt in 1..=MAX_RETRIES {
@@ -247,7 +266,6 @@ mod internal {
                         }
                     }
                     Err(_) => {
-                        // Timeout hit
                         if attempt == MAX_RETRIES {
                             return Err(RoboatError::TooManyRequests);
                         }
@@ -255,87 +273,7 @@ mod internal {
                 }
             }
 
-            Err(RoboatError::InternalServerError) // fallback error if all retries fail
-        }
-        /// Fetches metadata for a list of asset IDs using Roblox's asset batch API.
-        ///
-        /// # Parameters
-        /// - `asset_ids`: A vector of u64 asset IDs to query.
-        ///
-        /// # Returns
-        /// - `Ok(Vec<AssetBatchResponse>)`: A list of animation assets successfully retrieved and filtered.
-        /// - `Err(RoboatError)`: If the request fails (e.g., due to timeouts, malformed responses, or network issues).
-        ///
-        /// # Behavior
-        /// - The API is called in batches of 250 assets (the Roblox batch limit).
-        /// - Only assets of type `Animation` are retained in the final response.
-        /// - Retries failed batches up to 3 times if the error is a timeout or malformed response.
-        /// - Skips and logs failed batches after max retries.
-        ///
-        /// # Notes
-        /// - Each batch is retried up to `MAX_RETRIES` times (3 by default) if a timeout or known recoverable error occurs.
-        /// - Uses a brief delay (2 seconds) between retry attempts.
-        /// - The request ID in the payload is set to the asset ID for easier correlation in responses.
-        pub async fn fetch_animation_assets(
-            &self,
-            asset_ids: Vec<u64>,
-        ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
-            let mut return_list: Vec<AssetBatchResponse> = Vec::new();
-            let batch_size = 250;
-            let id_batches = asset_ids.chunks(batch_size);
-            const MAX_RETRIES: i32 = 3;
-
-            for batch in id_batches {
-                let payloads: Vec<AssetBatchPayload> = batch
-                    .iter()
-                    .map(|&asset_id| AssetBatchPayload {
-                        asset_id: Some(asset_id.to_string()),
-                        // Little hack here, the response requestId will be the assetId
-                        request_id: Some(asset_id.to_string()),
-                        ..Default::default()
-                    })
-                    .collect();
-                let mut attempts = 0;
-                loop {
-                    match self.check_asset_info(payloads.clone()).await {
-                        Ok(Some(mut result)) => {
-                            // Keep only animations
-                            result.retain(|item| {
-                                matches!(item.asset_type, Some(AssetType::Animation))
-                            });
-                            return_list.append(&mut result);
-                            break;
-                        }
-                        Ok(None) => {
-                            // Handle the case where the result is None
-                            break;
-                        }
-                        Err(e) => {
-                            eprintln!("Error checking animation types: {:?}", e);
-                            if let RoboatError::ReqwestError(ref reqwest_err) = e {
-                                if reqwest_err.is_timeout() && attempts < MAX_RETRIES {
-                                    attempts += 1;
-                                    println!("Timeout, retrying {}/{}...", attempts, MAX_RETRIES);
-                                    sleep(Duration::from_secs(2)).await;
-                                    continue;
-                                }
-                            } else if matches!(e, RoboatError::MalformedResponse) {
-                                if attempts < MAX_RETRIES {
-                                    attempts += 1;
-                                    println!(
-                                        "Malformed request, retrying {}/{}...",
-                                        attempts, MAX_RETRIES
-                                    );
-                                    sleep(Duration::from_secs(2)).await;
-                                    continue;
-                                }
-                            }
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            Ok(return_list)
+            Err(RoboatError::InternalServerError)
         }
     }
 }
