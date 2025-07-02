@@ -89,6 +89,8 @@ The tool requires minimal setup:
 
 ## 🤝 Credit 
 Im using a roblox wrapper; [Roboat](https://github.com/fekie/roboat) to achieve a more stable and better development with roblox's changes.
+Credit to [rojo-rbx](https://github.com/rojo-rbx/rbx-dom) for making this program possible and easy to write.
+
 
 For researching rust ive been using the official [rust book](https://doc.rust-lang.org/book/).
 
