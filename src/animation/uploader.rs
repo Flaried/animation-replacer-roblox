@@ -7,6 +7,7 @@ use roboat::ide::ide_types::NewAnimation;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
+use tokio::time;
 
 pub struct AnimationUploader {
     pub roblosecurity: String,
@@ -81,7 +82,8 @@ impl AnimationUploader {
         let mut return_list: Vec<AssetBatchResponse> = Vec::new();
         let batch_size = 250;
         let id_batches = asset_ids.chunks(batch_size);
-        const MAX_RETRIES: i32 = 9;
+        let mut timeout_timer: u64 = 4;
+        let max_retries: u32 = 9;
 
         for batch in id_batches {
             let payloads: Vec<AssetBatchPayload> = batch
@@ -93,9 +95,12 @@ impl AnimationUploader {
                 })
                 .collect();
 
-            let mut attempts = 0;
+            let mut attempts: u32 = 0;
             loop {
-                match self.check_asset_info(payloads.clone()).await {
+                match self
+                    .check_asset_info(payloads.clone(), time::Duration::new(timeout_timer, 0))
+                    .await
+                {
                     Ok(Some(mut result)) => {
                         result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
                         return_list.append(&mut result);
@@ -105,18 +110,22 @@ impl AnimationUploader {
                     Err(e) => {
                         eprintln!("Error checking animation types: {:?}", e);
                         if let RoboatError::ReqwestError(ref reqwest_err) = e {
-                            if reqwest_err.is_timeout() && attempts < MAX_RETRIES {
+                            if reqwest_err.is_timeout() && attempts < max_retries {
                                 attempts += 1;
-                                println!("Timeout, retrying {}/{}...", attempts, MAX_RETRIES);
+                                println!(
+                                    "Request timed out, retrying with higher timeout: attempts {}/{}...",
+                                    attempts, max_retries
+                                );
+                                timeout_timer += 1;
                                 sleep(Duration::from_secs(2)).await;
                                 continue;
                             }
                         } else if matches!(e, RoboatError::MalformedResponse) {
-                            if attempts < MAX_RETRIES {
+                            if attempts < max_retries {
                                 attempts += 1;
                                 println!(
                                     "Malformed request, retrying {}/{}...",
-                                    attempts, MAX_RETRIES
+                                    attempts, max_retries
                                 );
                                 sleep(Duration::from_secs(2)).await;
                                 continue;
@@ -146,8 +155,11 @@ impl AnimationUploader {
         self: Arc<Self>,
         animations: Vec<AssetBatchResponse>,
         group_id: Option<u64>,
+        task_count: Option<u64>,
     ) -> Result<HashMap<String, String>, RoboatError> {
-        let semaphore = Arc::new(Semaphore::new(5));
+        let max_concurrent_tasks = task_count.unwrap_or(500);
+
+        let semaphore = Arc::new(Semaphore::new(max_concurrent_tasks as usize));
         let mut tasks = Vec::new();
         let total_animations = animations.len();
 
@@ -167,19 +179,48 @@ impl AnimationUploader {
 
                 let task = tokio::spawn(async move {
                     let _permit = semaphore.acquire().await.unwrap();
-
-                    println!(
-                        "Reuploading animation {}/{} ({} remaining)",
-                        index + 1,
-                        total_animations,
-                        total_animations - (index + 1)
-                    );
-
                     let animation_file = self_arc.file_bytes_from_url(location).await?;
-                    let new_animation_id =
-                        self_arc.upload_animation(animation_file, group_id).await?;
 
-                    Ok::<_, RoboatError>((request_id, new_animation_id))
+                    // Retry logic for upload_animation
+                    let max_upload_retries: usize = 5;
+                    let mut last_error = None;
+
+                    for attempt in 1..=max_upload_retries {
+                        match self_arc
+                            .upload_animation(animation_file.clone(), group_id)
+                            .await
+                        {
+                            Ok(new_animation_id) => {
+                                println!(
+                                    "Success uploading animation {}/{} ({} remaining)",
+                                    index + 1,
+                                    total_animations,
+                                    total_animations - (index + 1),
+                                );
+                                return Ok::<_, RoboatError>((request_id, new_animation_id));
+                            }
+
+                            Err(e) => {
+                                eprintln!(
+                                    "Upload attempt {}/{} failed for animation {}: {}",
+                                    attempt,
+                                    max_upload_retries,
+                                    index + 1,
+                                    e
+                                );
+                                last_error = Some(e);
+
+                                // Don't sleep on the last attempt
+                                if attempt < max_upload_retries {
+                                    tokio::time::sleep(tokio::time::Duration::from_millis(1000))
+                                        .await;
+                                }
+                            }
+                        }
+                    }
+
+                    // All retries failed
+                    Err(last_error.unwrap())
                 });
 
                 tasks.push(task);
@@ -187,22 +228,57 @@ impl AnimationUploader {
         }
 
         let mut animation_hashmap = HashMap::new();
+        let mut errors = Vec::new();
+        let total_tasks = tasks.len();
 
         for task in tasks {
             match task.await {
+                // Task completed successfully with a result and request_id exists
                 Ok(Ok((Some(request_id), new_animation_id))) => {
                     animation_hashmap.insert(request_id, new_animation_id);
                 }
-                Ok(Err(e)) => return Err(e),
-                Err(_) => return Err(RoboatError::InternalServerError),
-                _ => {}
+
+                // Handle case where animation_id is None
+                Ok(Ok((None, _))) => {
+                    eprintln!("Warning: Animation uploader success but no animation_id available");
+                    // Skip this result since we can't map it without a request_id
+                }
+
+                // Task completed but your function returned an error
+                Ok(Err(e)) => {
+                    if matches!(e, RoboatError::BadRequest) {
+                        eprintln!(
+                            "Animation Upload API failed to respond with errors; Cookie cannot publish animations. \nwith group uploading; make sure the cookie has perms to ALL Asset and Experience permissions\n"
+                        )
+                    } else {
+                        eprintln!("Animation upload failed: {}", e);
+                    }
+                    errors.push(e);
+                }
+
+                // Task panicked or was cancelled
+                Err(join_error) => {
+                    eprintln!("Task failed to execute: {}", join_error);
+                    // Just log the error and continue - don't fail the entire batch
+                }
             }
+        }
+
+        // Handle collected errors
+
+        if !errors.is_empty() {
+            eprintln!(
+                "Some uploads failed: {} out of {} tasks\nERROR INFO: {:?}",
+                errors.len(),
+                total_tasks,
+                errors
+            );
+            // return Err(errors.into_iter().next().unwrap());
         }
 
         Ok(animation_hashmap)
     }
 }
-
 mod internal {
     use bytes::Bytes;
     use roboat::ClientBuilder;
@@ -218,9 +294,10 @@ mod internal {
         pub async fn check_asset_info(
             &self,
             asset_id: Vec<AssetBatchPayload>,
+            timeout_secs: time::Duration,
         ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
             let timeout_client = reqwest::ClientBuilder::new()
-                .timeout(time::Duration::new(3, 0))
+                .timeout(timeout_secs)
                 .build()
                 .map_err(RoboatError::ReqwestError)?;
 
@@ -246,12 +323,12 @@ mod internal {
             use reqwest::Client;
             use tokio::time::{Duration, timeout};
 
-            const MAX_RETRIES: usize = 3;
-            const TIMEOUT_SECS: u64 = 1;
+            let max_retries: usize = 3;
+            const TIMEOUT_SECS: u64 = 3;
 
             let client = Client::new();
 
-            for attempt in 1..=MAX_RETRIES {
+            for attempt in 1..=max_retries {
                 let result =
                     timeout(Duration::from_secs(TIMEOUT_SECS), client.get(&url).send()).await;
 
@@ -261,19 +338,19 @@ mod internal {
                         return Ok(bytes);
                     }
                     Ok(Err(e)) => {
-                        if attempt == MAX_RETRIES {
-                            return Err(RoboatError::ReqwestError(e));
+                        if attempt == max_retries {
+                            return Err(RoboatError::ReqwestError(e))?;
                         }
                     }
-                    Err(_) => {
-                        if attempt == MAX_RETRIES {
-                            return Err(RoboatError::TooManyRequests);
+                    Err(e) => {
+                        println!("Getting btres from url error: {:?}", e);
+                        if attempt == max_retries {
+                            return Err(RoboatError::InternalServerError);
                         }
                     }
                 }
             }
-
-            Err(RoboatError::InternalServerError)
+            unreachable!("Loop should always return")
         }
     }
 }
