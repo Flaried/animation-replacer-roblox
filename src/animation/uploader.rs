@@ -79,7 +79,7 @@ impl AnimationUploader {
         use tokio::time::{Duration, sleep};
 
         let mut return_list: Vec<AssetBatchResponse> = Vec::new();
-        let batch_size = 250;
+        let batch_size = 100;
         let id_batches = asset_ids.chunks(batch_size);
         const MAX_RETRIES: i32 = 9;
 
@@ -99,6 +99,7 @@ impl AnimationUploader {
                     Ok(Some(mut result)) => {
                         result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
                         return_list.append(&mut result);
+                        sleep(Duration::from_secs(2)).await;
                         break;
                     }
                     Ok(None) => break,
@@ -220,7 +221,7 @@ mod internal {
             asset_id: Vec<AssetBatchPayload>,
         ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
             let timeout_client = reqwest::ClientBuilder::new()
-                .timeout(time::Duration::new(3, 0))
+                .timeout(time::Duration::new(10, 0))
                 .build()
                 .map_err(RoboatError::ReqwestError)?;
 
