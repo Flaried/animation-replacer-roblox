@@ -76,8 +76,9 @@ You will also need to open Roblox Studio and save the game as a file for the Ani
 The tool requires minimal setup:
 - **Roblox Cookie (REQUIRED)**: Your authentication token for accessing Roblox services
 - **Target File (REQUIRED)**: --file requires the path of the file to scan
-- **Group Id (Optional)**: Upload to a group with --group flag
+- **Group id (Optional)**: Upload to a group with --group flag
 - **Output (Optional)**: Use the --ouput flag to avoid data loss
+- **Threads (Optional)**: the --threads flag is how many concurrent tasks need to run (default is 5)
 
 ## 🚨 Important Notes
 
