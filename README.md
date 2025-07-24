@@ -5,9 +5,11 @@
 
 
 **Animation Transfering/Spoofing** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation transfer when you publish your game.
+<div align="center">
 
----
-
+[![Showcase Video](https://img.youtube.com/vi/URB9llET-w8/0.jpg)](https://www.youtube.com/watch?v=URB9llET-w8 "Showcase Video")
+<footer>Video Showcase</footer>
+</div>
 
 ## 📝 Development Status
 - ✅ Scrape animations in lua scripts
@@ -18,9 +20,6 @@
 - ✅ Flags and user configuration for easy use
 - ✅ Replace the animation instances in-game (Only replaces scripts for now)  
 - ❌ Rename the Animations as the same as the ones it replaces (Requires extra API calls for scripts)
-
-
-
 
 ## 📦 Installation
 
