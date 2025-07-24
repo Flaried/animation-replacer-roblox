@@ -99,7 +99,6 @@ impl AnimationUploader {
                     Ok(Some(mut result)) => {
                         result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
                         return_list.append(&mut result);
-                        sleep(Duration::from_secs(2)).await;
                         break;
                     }
                     Ok(None) => break,
