@@ -22,6 +22,10 @@ struct Args {
     /// Required if the the game will be published to a Group [Id of the group]
     #[arg(long, short)]
     group: Option<u64>,
+
+    /// How many concurrent tasks using semaphore. [defaulted to 5]
+    #[arg(long, short)]
+    threads: Option<u64>,
 }
 
 #[tokio::main]
@@ -68,7 +72,7 @@ async fn main() {
 
     let uploader = Arc::new(AnimationUploader::new(args.cookie));
     match uploader
-        .reupload_all_animations(all_animations, args.group.clone())
+        .reupload_all_animations(all_animations, args.group.clone(), args.threads.clone())
         .await
     {
         Ok(animation_mapping) => {
