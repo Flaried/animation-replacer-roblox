@@ -79,7 +79,7 @@ impl AnimationUploader {
         use tokio::time::{Duration, sleep};
 
         let mut return_list: Vec<AssetBatchResponse> = Vec::new();
-        let batch_size = 100;
+        let batch_size = 250;
         let id_batches = asset_ids.chunks(batch_size);
         const MAX_RETRIES: i32 = 9;
 
