@@ -96,7 +96,6 @@ impl AnimationUploader {
 
                 // Make a single API call with all 150 items
                 match client.item_details(items).await {
-                    // or whatever the batch method is
                     Ok(results) => {
                         let owner_infos: Vec<OwnerInfo> = results
                             .iter()
@@ -105,7 +104,7 @@ impl AnimationUploader {
                                 owner_type: details.creator_type,
                             })
                             .collect();
-                        return_list.extend(owner_infos); // or append if you prefer
+                        return_list.extend(owner_infos);
 
                         // return_list.append(&mut results);
                         break;
