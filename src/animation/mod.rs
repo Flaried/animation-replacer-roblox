@@ -3,6 +3,7 @@ use crate::StudioParser;
 use roboat::RoboatError;
 use roboat::assetdelivery::AssetBatchResponse;
 
+pub mod place_id;
 pub mod uploader;
 
 // Implement uploader code into the studio struct
