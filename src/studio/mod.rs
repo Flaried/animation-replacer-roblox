@@ -1,2 +1,2 @@
 pub mod dom_parser;
-pub mod file_editor;
+pub mod workplace_editor;
