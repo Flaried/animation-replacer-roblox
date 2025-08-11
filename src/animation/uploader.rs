@@ -3,6 +3,9 @@ use roboat::ClientBuilder;
 use roboat::RoboatError;
 use roboat::assetdelivery::AssetBatchPayload;
 use roboat::assetdelivery::AssetBatchResponse;
+use roboat::catalog::CreatorType;
+use roboat::catalog::Item;
+use roboat::catalog::ItemType;
 use roboat::ide::ide_types::NewAnimation;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,6 +14,17 @@ use tokio::time;
 
 pub struct AnimationUploader {
     pub roblosecurity: String,
+}
+
+#[derive(Debug)]
+pub struct AnimationWithPlace {
+    pub animation: AssetBatchResponse,
+    pub place_id: u64,
+}
+
+pub struct OwnerInfo {
+    pub owner_id: u64,
+    pub owner_type: CreatorType,
 }
 
 impl AnimationUploader {
@@ -56,6 +70,63 @@ impl AnimationUploader {
         Ok(new_asset_id_string)
     }
 
+    pub async fn fetch_animation_owner_details(
+        &self,
+        asset_ids: Vec<u64>,
+    ) -> Result<Vec<OwnerInfo>, RoboatError> {
+        let mut return_list = Vec::new();
+        let batch_size = 150;
+        let id_batches = asset_ids.chunks(batch_size);
+        let max_retries: u32 = 9;
+        let client = ClientBuilder::new()
+            .roblosecurity(self.roblosecurity.clone())
+            .build();
+
+        for batch in id_batches {
+            let mut attempts: u32 = 0;
+            loop {
+                // Create a Vec of Items for the batch
+                let items: Vec<Item> = batch
+                    .iter()
+                    .map(|&asset_id| Item {
+                        item_type: ItemType::Asset,
+                        id: asset_id,
+                    })
+                    .collect();
+
+                // Make a single API call with all 150 items
+                match client.item_details(items).await {
+                    // or whatever the batch method is
+                    Ok(results) => {
+                        let owner_infos: Vec<OwnerInfo> = results
+                            .iter()
+                            .map(|details| OwnerInfo {
+                                owner_id: details.creator_id,
+                                owner_type: details.creator_type,
+                            })
+                            .collect();
+                        return_list.extend(owner_infos); // or append if you prefer
+
+                        // return_list.append(&mut results);
+                        break;
+                    }
+                    Err(e) => {
+                        eprintln!("Error fetching owners: {:?}", e);
+                        if attempts < max_retries {
+                            attempts += 1;
+                            println!("Retrying owner fetch {}/{}...", attempts, max_retries);
+                            // timeout_timer += 1;
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                            continue;
+                        }
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        Ok(return_list)
+    }
+
     /// Fetches animation assets from a list of asset IDs
     ///
     /// * Notes
@@ -98,7 +169,7 @@ impl AnimationUploader {
             let mut attempts: u32 = 0;
             loop {
                 match self
-                    .check_asset_info(payloads.clone(), time::Duration::new(timeout_timer, 0))
+                    .check_asset_metadata(payloads.clone(), time::Duration::new(timeout_timer, 0))
                     .await
                 {
                     Ok(Some(mut result)) => {
@@ -290,10 +361,12 @@ mod internal {
     use crate::animation::uploader::AnimationUploader;
 
     impl AnimationUploader {
-        /// Checks asset information for up to 250 assets.
-        pub async fn check_asset_info(
+        /// Checks asset metadata for up to 250 assets.
+        /// Now it also returns a place made by the creator, for place_id header to upload
+        /// animations
+        pub async fn check_asset_metadata(
             &self,
-            asset_id: Vec<AssetBatchPayload>,
+            asset_ids: Vec<AssetBatchPayload>,
             timeout_secs: time::Duration,
         ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
             let timeout_client = reqwest::ClientBuilder::new()
@@ -306,7 +379,7 @@ mod internal {
                 .reqwest_client(timeout_client)
                 .build();
 
-            match client.post_asset_metadata_batch(asset_id).await {
+            match client.post_asset_metadata_batch(asset_ids).await {
                 Ok(x) => Ok(Some(x)),
                 Err(e) => Err(e),
             }
