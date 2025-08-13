@@ -1,16 +1,12 @@
 use bytes::Bytes;
 use roboat::ClientBuilder;
 use roboat::RoboatError;
-use roboat::assetdelivery::AssetBatchPayload;
 use roboat::assetdelivery::AssetBatchResponse;
 use roboat::catalog::CreatorType;
-use roboat::catalog::Item;
-use roboat::catalog::ItemType;
 use roboat::ide::ide_types::NewAnimation;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
-use tokio::time;
 
 pub struct AnimationUploader {
     pub roblosecurity: String,
@@ -68,145 +64,6 @@ impl AnimationUploader {
 
         let new_asset_id_string = client.upload_new_animation(animation).await?;
         Ok(new_asset_id_string)
-    }
-
-    pub async fn fetch_animation_owner_details(
-        &self,
-        asset_ids: Vec<u64>,
-    ) -> Result<Vec<OwnerInfo>, RoboatError> {
-        let mut return_list = Vec::new();
-        let batch_size = 150;
-        let id_batches = asset_ids.chunks(batch_size);
-        let max_retries: u32 = 9;
-        let client = ClientBuilder::new()
-            .roblosecurity(self.roblosecurity.clone())
-            .build();
-
-        for batch in id_batches {
-            let mut attempts: u32 = 0;
-            loop {
-                // Create a Vec of Items for the batch
-                let items: Vec<Item> = batch
-                    .iter()
-                    .map(|&asset_id| Item {
-                        item_type: ItemType::Asset,
-                        id: asset_id,
-                    })
-                    .collect();
-
-                // Make a single API call with all 150 items
-                match client.item_details(items).await {
-                    Ok(results) => {
-                        let owner_infos: Vec<OwnerInfo> = results
-                            .iter()
-                            .map(|details| OwnerInfo {
-                                owner_id: details.creator_id,
-                                owner_type: details.creator_type,
-                            })
-                            .collect();
-                        return_list.extend(owner_infos);
-
-                        // return_list.append(&mut results);
-                        break;
-                    }
-                    Err(e) => {
-                        eprintln!("Error fetching owners: {:?}", e);
-                        if attempts < max_retries {
-                            attempts += 1;
-                            println!("Retrying owner fetch {}/{}...", attempts, max_retries);
-                            // timeout_timer += 1;
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                            continue;
-                        }
-                        return Err(e);
-                    }
-                }
-            }
-        }
-        Ok(return_list)
-    }
-
-    /// Fetches animation assets from a list of asset IDs
-    ///
-    /// * Notes
-    /// This function will divide the list into 250 chunks and post to the API
-    /// The AssetBatchResponse CAN contain errors (One asset could be private etc.)
-    ///
-    /// * Returns
-    /// Returns all the Asset Responses (Can have errors)
-    /// If the roblox cookie is invalid it will return a roboat error.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let ids = vec![123456, 789012];
-    /// let animations = uploader.fetch_animation_assets(ids).await?;
-    /// ```
-    pub async fn fetch_animation_assets(
-        &self,
-        asset_ids: Vec<u64>,
-    ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
-        use roboat::catalog::AssetType;
-        use tokio::time::{Duration, sleep};
-
-        let mut return_list: Vec<AssetBatchResponse> = Vec::new();
-        let batch_size = 250;
-        let id_batches = asset_ids.chunks(batch_size);
-        let mut timeout_timer: u64 = 4;
-        let max_retries: u32 = 9;
-
-        for batch in id_batches {
-            let payloads: Vec<AssetBatchPayload> = batch
-                .iter()
-                .map(|&asset_id| AssetBatchPayload {
-                    asset_id: Some(asset_id.to_string()),
-                    request_id: Some(asset_id.to_string()),
-                    ..Default::default()
-                })
-                .collect();
-
-            let mut attempts: u32 = 0;
-            loop {
-                match self
-                    .check_asset_metadata(payloads.clone(), time::Duration::new(timeout_timer, 0))
-                    .await
-                {
-                    Ok(Some(mut result)) => {
-                        result.retain(|item| matches!(item.asset_type, Some(AssetType::Animation)));
-                        return_list.append(&mut result);
-                        break;
-                    }
-                    Ok(None) => break,
-                    Err(e) => {
-                        eprintln!("Error checking animation types: {:?}", e);
-                        if let RoboatError::ReqwestError(ref reqwest_err) = e {
-                            if reqwest_err.is_timeout() && attempts < max_retries {
-                                attempts += 1;
-                                println!(
-                                    "Request timed out, retrying with higher timeout: attempts {}/{}...",
-                                    attempts, max_retries
-                                );
-                                timeout_timer += 1;
-                                sleep(Duration::from_secs(2)).await;
-                                continue;
-                            }
-                        } else if matches!(e, RoboatError::MalformedResponse) {
-                            if attempts < max_retries {
-                                attempts += 1;
-                                println!(
-                                    "Malformed request, retrying {}/{}...",
-                                    attempts, max_retries
-                                );
-                                sleep(Duration::from_secs(2)).await;
-                                continue;
-                            }
-                        }
-                        return Err(e);
-                    }
-                }
-            }
-        }
-        Ok(return_list)
     }
 
     /// Reuploads animations concurrently with semaphore limiting.
@@ -311,7 +168,6 @@ impl AnimationUploader {
                 // Handle case where animation_id is None
                 Ok(Ok((None, _))) => {
                     eprintln!("Warning: Animation uploader success but no animation_id available");
-                    // Skip this result since we can't map it without a request_id
                 }
 
                 // Task completed but your function returned an error
@@ -335,7 +191,6 @@ impl AnimationUploader {
         }
 
         // Handle collected errors
-
         if !errors.is_empty() {
             eprintln!(
                 "Some uploads failed: {} out of {} tasks\nERROR INFO: {:?}",
@@ -343,86 +198,249 @@ impl AnimationUploader {
                 total_tasks,
                 errors
             );
-            // return Err(errors.into_iter().next().unwrap());
         }
 
         Ok(animation_hashmap)
     }
-}
-mod internal {
-    use bytes::Bytes;
-    use roboat::ClientBuilder;
-    use roboat::RoboatError;
-    use roboat::assetdelivery::AssetBatchPayload;
-    use roboat::assetdelivery::AssetBatchResponse;
-    use tokio::time;
 
-    use crate::animation::uploader::AnimationUploader;
+    ///  Gets all the animation file data to re-upload them
+    /// * Notes
+    /// This func uses caching and hashmaps to handle needing place-id to download assets
+    pub async fn fetch_animation_assets(
+        &self,
+        asset_ids: Vec<u64>,
+    ) -> anyhow::Result<Vec<AssetBatchResponse>> {
+        let mut cached_places: HashMap<String, u64> = HashMap::new();
+        let mut place_id: Option<String> = None;
+        let mut animations: Vec<AssetBatchResponse> = Vec::new();
+        let batch_size = 250;
 
-    impl AnimationUploader {
-        /// Checks asset metadata for up to 250 assets.
-        /// Now it also returns a place made by the creator, for place_id header to upload
-        /// animations
-        pub async fn check_asset_metadata(
-            &self,
-            asset_ids: Vec<AssetBatchPayload>,
-            timeout_secs: time::Duration,
-        ) -> Result<Option<Vec<AssetBatchResponse>>, RoboatError> {
-            let timeout_client = reqwest::ClientBuilder::new()
-                .timeout(timeout_secs)
-                .build()
-                .map_err(RoboatError::ReqwestError)?;
-
-            let client = ClientBuilder::new()
-                .roblosecurity(self.roblosecurity.clone())
-                .reqwest_client(timeout_client)
-                .build();
-
-            match client.post_asset_metadata_batch(asset_ids).await {
-                Ok(x) => Ok(Some(x)),
-                Err(e) => Err(e),
-            }
+        for batch in asset_ids.chunks(batch_size) {
+            let batch_animations = self
+                .fetch_batch_with_retry(batch, &mut cached_places, &mut place_id)
+                .await?;
+            animations.extend(batch_animations);
         }
 
-        /// Downloads file bytes from a URL with retry logic.
+        Ok(animations)
+    }
+}
+
+mod internal {
+    use std::collections::HashMap;
+
+    use roboat::{
+        RoboatError,
+        assetdelivery::{AssetBatchPayload, AssetBatchResponse},
+    };
+
+    use crate::AnimationUploader;
+
+    impl AnimationUploader {
+        /// Fetches asset metadata for a batch of asset IDs with automatic retry logic and 403 error handling.
+        ///
+        /// This function attempts to retrieve asset metadata for the provided asset IDs, handling
+        /// error conditions specifically manages 403 permission
+        /// errors by dynamically discovering and using place IDs
+        ///
+        /// # Parameters
+        /// * `asset_ids` - A slice of asset IDs to fetch metadata for (typically up to 250 per batch)
+        /// * `cached_places` - A mutable reference to a HashMap that caches asset_id -> place_id mappings
+        ///                     to avoid redundant API calls across batches
+        /// * `place_id` - A mutable reference to an optional place_id that persists across retries and batches.
+        ///                When a 403 error occurs, this will be populated with the discovered place_id
+        ///
+        /// # Returns
+        /// * `Ok(Vec<AssetBatchResponse>)` - Successfully fetched and filtered animation assets
+        /// * `Err(anyhow::Error)` - Failed after all retry attempts or encountered unrecoverable error
+        ///
+        /// # Retry Logic
+        /// - **Max Retries**: 9 attempts with exponential timeout increase
+        /// - **403 Errors**: Automatically discovers place_id from first 403 error and retries
+        /// - **Network Errors**: Retries with increased timeout for reqwest timeout/malformed response errors
+        /// - **Timeout Progression**: Starts at 4 seconds, increases by 1 second per retry attempt
+        ///
+        /// # Error Handling
+        /// - **403 Forbidden**: Extracts place_id from the failing asset and retries the entire batch
+        /// - **Timeout/Network**: Implements backoff strategy with 2-second sleep between attempts
+        /// - **Other Errors**: Fails immediately without retry
         ///
         /// # Examples
-        ///
         /// ```rust
-        /// let bytes = uploader.file_bytes_from_url("https://example.com/file.rbxm".to_string()).await?;
+        /// let mut cache = HashMap::new();
+        /// let mut place_id = None;
+        /// let asset_ids = vec![123456, 789012, 345678];
+        ///
+        /// let animations = uploader
+        ///     .fetch_batch_with_retry(&asset_ids, &mut cache, &mut place_id)
+        ///     .await?;
         /// ```
-        pub async fn file_bytes_from_url(&self, url: String) -> Result<Bytes, RoboatError> {
-            use reqwest::Client;
-            use tokio::time::{Duration, timeout};
+        pub(super) async fn fetch_batch_with_retry(
+            &self,
+            asset_ids: &[u64],
+            cached_places: &mut HashMap<String, u64>,
+            place_id: &mut Option<String>,
+        ) -> anyhow::Result<Vec<AssetBatchResponse>> {
+            use tokio::time::{Duration, sleep};
 
-            let max_retries: usize = 3;
-            const TIMEOUT_SECS: u64 = 3;
+            const MAX_RETRIES: u32 = 9;
+            const INITIAL_TIMEOUT: u64 = 4;
 
-            let client = Client::new();
+            let mut timeout_seconds = INITIAL_TIMEOUT;
+            let mut attempts = 0;
 
-            for attempt in 1..=max_retries {
-                let result =
-                    timeout(Duration::from_secs(TIMEOUT_SECS), client.get(&url).send()).await;
+            loop {
+                let payloads = self.create_batch_payloads(asset_ids);
 
-                match result {
-                    Ok(Ok(response)) => {
-                        let bytes = response.bytes().await.map_err(RoboatError::ReqwestError)?;
-                        return Ok(bytes);
-                    }
-                    Ok(Err(e)) => {
-                        if attempt == max_retries {
-                            return Err(RoboatError::ReqwestError(e))?;
+                match self
+                    .check_asset_metadata(
+                        payloads,
+                        place_id.clone(),
+                        Duration::from_secs(timeout_seconds),
+                    )
+                    .await
+                {
+                    Ok(Some(responses)) => {
+                        // Check if we got any 403 errors
+                        if let Some(new_place_id) = self
+                            .handle_first_403_error(&responses, cached_places)
+                            .await?
+                        {
+                            // Found a 403 error and got a new place_id, retry with this place_id
+                            *place_id = Some(new_place_id);
+
+                            println!(
+                                "Got 403 error, retrying with place_id: {}",
+                                place_id.as_ref().unwrap()
+                            );
+                            continue;
                         }
+
+                        // No 403 errors, filter and return animations
+                        return Ok(self.filter_animations(responses));
+                    }
+                    Ok(None) => {
+                        return Ok(Vec::new());
                     }
                     Err(e) => {
-                        println!("Getting btres from url error: {:?}", e);
-                        if attempt == max_retries {
-                            return Err(RoboatError::InternalServerError);
+                        if self.should_retry(&e, attempts, MAX_RETRIES) {
+                            attempts += 1;
+                            timeout_seconds += 1;
+
+                            println!(
+                                "Request failed, retrying with higher timeout: attempts {}/{} ({})",
+                                attempts, MAX_RETRIES, e
+                            );
+
+                            sleep(Duration::from_secs(2)).await;
+                            continue;
                         }
+                        return Err(e);
                     }
                 }
             }
-            unreachable!("Loop should always return")
+        }
+
+        pub(super) async fn handle_first_403_error(
+            &self,
+            responses: &[AssetBatchResponse],
+            cached_places: &mut HashMap<String, u64>,
+        ) -> anyhow::Result<Option<String>> {
+            // Find the first 403 error
+            for response in responses {
+                if self.has_403_error(response) {
+                    if let Some(request_id_str) = &response.request_id {
+                        let asset_id: u64 = request_id_str.parse().map_err(|e| {
+                            anyhow::anyhow!("Failed to parse asset ID '{}': {}", request_id_str, e)
+                        })?;
+
+                        let place_id = self.get_or_fetch_place_id(asset_id, cached_places).await?;
+
+                        println!("Found place_id: {} for asset: {}", place_id, request_id_str);
+                        return Ok(Some(place_id.to_string()));
+                    }
+                }
+            }
+            // No 403 errors found
+            Ok(None)
+        }
+
+        pub(super) async fn get_or_fetch_place_id(
+            &self,
+            asset_id: u64,
+            cached_places: &mut HashMap<String, u64>,
+        ) -> anyhow::Result<u64> {
+            let cache_key = asset_id.to_string();
+
+            if let Some(&place_id) = cached_places.get(&cache_key) {
+                return Ok(place_id);
+            }
+
+            let place_id = self.place_id(asset_id, cached_places).await.map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to get place id for asset {} error: {}",
+                    cache_key,
+                    e
+                )
+            })?;
+
+            cached_places.insert(cache_key, place_id);
+            Ok(place_id)
+        }
+        pub(super) fn create_batch_payloads(&self, asset_ids: &[u64]) -> Vec<AssetBatchPayload> {
+            asset_ids
+                .iter()
+                .map(|&asset_id| AssetBatchPayload {
+                    asset_id: Some(asset_id.to_string()),
+                    request_id: Some(asset_id.to_string()),
+                    ..Default::default()
+                })
+                .collect()
+        }
+
+        pub(super) fn has_403_error(&self, response: &AssetBatchResponse) -> bool {
+            response
+                .errors
+                .as_ref()
+                .map(|errors| errors.iter().any(|error| error.code == 403))
+                .unwrap_or(false)
+        }
+
+        pub(super) fn filter_animations(
+            &self,
+            responses: Vec<AssetBatchResponse>,
+        ) -> Vec<AssetBatchResponse> {
+            use roboat::catalog::AssetType;
+
+            responses
+                .into_iter()
+                .filter(|response| {
+                    // Only include responses without errors that are animations
+                    response.errors.is_none()
+                        && matches!(response.asset_type, Some(AssetType::Animation))
+                })
+                .collect()
+        }
+
+        pub(super) fn should_retry(
+            &self,
+            error: &anyhow::Error,
+            attempts: u32,
+            max_retries: u32,
+        ) -> bool {
+            if attempts >= max_retries {
+                return false;
+            }
+
+            if let Some(roboat_error) = error.downcast_ref::<RoboatError>() {
+                match roboat_error {
+                    RoboatError::ReqwestError(reqwest_err) if reqwest_err.is_timeout() => true,
+                    RoboatError::MalformedResponse => true,
+                    _ => false,
+                }
+            } else {
+                false
+            }
         }
     }
 }
