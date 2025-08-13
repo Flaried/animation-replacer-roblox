@@ -2,7 +2,6 @@ use crate::StudioParser;
 use rbx_binary::from_reader;
 use rbx_types::Variant;
 use regex::Regex;
-use roboat::RoboatError;
 use roboat::assetdelivery::AssetBatchResponse;
 use std::fs::File;
 use std::path::Path;
@@ -20,8 +19,7 @@ impl StudioParser {
     ///     .build()?;
     /// let animations = parser.workspace_animations().await?;
     /// ```
-
-    pub async fn workspace_animations(&self) -> Result<Vec<AssetBatchResponse>, RoboatError> {
+    pub async fn workspace_animations(&self) -> anyhow::Result<Vec<AssetBatchResponse>> {
         let re = Regex::new(r"\d+").unwrap();
 
         let asset_ids: Vec<u64> = self

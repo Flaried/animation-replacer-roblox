@@ -3,7 +3,7 @@ use crate::StudioParser;
 use roboat::RoboatError;
 use roboat::assetdelivery::AssetBatchResponse;
 
-pub mod place_id;
+pub mod info;
 pub mod uploader;
 
 // Implement uploader code into the studio struct
@@ -18,7 +18,7 @@ impl StudioParser {
     pub async fn fetch_animation_assets(
         &self,
         asset_ids: Vec<u64>,
-    ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
+    ) -> anyhow::Result<Vec<AssetBatchResponse>> {
         let uploader = self.animation_uploader()?;
         uploader.fetch_animation_assets(asset_ids).await
     }

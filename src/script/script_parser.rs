@@ -14,9 +14,7 @@ impl StudioParser {
     /// animations.
     /// * Requires a cookie
     /// * Batch API does hang sometimes, fixed that with retries and 3 second timeout.
-    pub async fn all_animations_in_scripts(
-        &mut self,
-    ) -> Result<Vec<AssetBatchResponse>, RoboatError> {
+    pub async fn all_animations_in_scripts(&mut self) -> anyhow::Result<Vec<AssetBatchResponse>> {
         println!("Fetching animations in scripts.");
         let script_refs = self.get_script_refs();
 
@@ -32,6 +30,7 @@ impl StudioParser {
                     let ids_in_script = pattern
                         .find_iter(source)
                         .filter_map(|m| m.as_str().parse::<u64>().ok());
+
                     all_ids.extend(ids_in_script);
                 }
             }
