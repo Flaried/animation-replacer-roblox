@@ -2,8 +2,6 @@
 [![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Roblox](https://img.shields.io/badge/Roblox-00A2FF?style=for-the-badge&logo=roblox&logoColor=white)](https://www.roblox.com/)
 
-:warning: Animation Replacer isn't updated to the latest roblox update. An update for this is in development. :warning:
-
 **Animation Transfering/Spoofing** is an automated process designed to fix the handling of third party animations in your Roblox game. This program will scrape Roblox files, spoof/reupload animations, and republish them to ensure animation transfer when you publish your game.
 <div align="center">
 
