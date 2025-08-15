@@ -22,3 +22,4 @@ reqwest = "0.12.21"
 roboat = { git = "https://github.com/Flaried/roboat-extras.git", branch = "main" }
 #roboat = "0.36.0"
 anyhow = "1.0.98"
+indexmap = "2.10.0"

@@ -14,10 +14,8 @@ impl StudioParser {
     /// * Requires a cookie
     /// * Batch API does hang sometimes, fixed that with retries and 3 second timeout.
     pub async fn all_animations_in_scripts(&mut self) -> anyhow::Result<Vec<AssetBatchResponse>> {
-        println!("Fetching animations in scripts.");
         let script_refs = self.get_script_refs();
-
-        let pattern = Regex::new(r"\d{5,}").unwrap();
+        let pattern = Regex::new(r"rbxassetid://(\d{5,})").unwrap();
 
         // Collect and deduplicate all IDs from all scripts
         let mut all_ids: HashSet<u64> = HashSet::new();
@@ -36,11 +34,9 @@ impl StudioParser {
         }
 
         // Convert to Vec and fetch assets
-        let id_list: Vec<u64> = all_ids.into_iter().collect();
-        println!(
-            "Got all animations from scripts: {}... Sending them to Roblox API",
-            id_list.len()
-        );
+        let mut id_list: Vec<u64> = all_ids.into_iter().collect();
+        id_list.sort();
+        println!("Got all animations from scripts: {}", id_list.len());
         self.fetch_animation_assets(id_list).await
     }
 

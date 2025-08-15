@@ -22,7 +22,7 @@ impl StudioParser {
     pub async fn workspace_animations(&self) -> anyhow::Result<Vec<AssetBatchResponse>> {
         let re = Regex::new(r"\d+").unwrap();
 
-        let asset_ids: Vec<u64> = self
+        let mut asset_ids: Vec<u64> = self
             .dom
             .descendants()
             .filter(|instance| instance.class == "Animation")
@@ -36,6 +36,7 @@ impl StudioParser {
             )
             .collect();
 
+        asset_ids.sort();
         self.fetch_animation_assets(asset_ids).await
     }
 

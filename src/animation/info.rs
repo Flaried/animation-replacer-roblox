@@ -15,14 +15,8 @@ impl AnimationUploader {
             .build();
 
         let asset_info = client.get_asset_info(asset_id).await?;
-        println!("{:?}", asset_info);
 
         if let Some(user_id) = asset_info.creation_context.creator.user_id {
-            if let Some(&cached_place) = cached_owners.get(&user_id) {
-                println!("user already cached, not calling user api");
-                return Ok(cached_place);
-            }
-
             let user_id_parsed = user_id
                 .parse::<u64>()
                 .map_err(|e| anyhow::anyhow!("Failed to parse user_id '{}': {}", user_id, e))?;
@@ -33,11 +27,6 @@ impl AnimationUploader {
         }
 
         if let Some(group_id) = asset_info.creation_context.creator.group_id {
-            if let Some(&cached_place) = cached_owners.get(&group_id) {
-                println!("group already cached, not calling group api");
-                return Ok(cached_place);
-            }
-
             let group_id_parsed = group_id
                 .parse::<u64>()
                 .map_err(|e| anyhow::anyhow!("Failed to parse group_id '{}': {}", group_id, e))?;
@@ -68,6 +57,7 @@ mod internal {
             let client = ClientBuilder::new().build();
             let games_response = client.user_games(user_id).await?;
             if let Some(first_place) = games_response.data.first() {
+                println!("Getting place id for {} (API)", first_place.root_place.id);
                 Ok(first_place.root_place.id)
             } else {
                 Err(anyhow::anyhow!("Couldn't find place for user {}", user_id))
@@ -79,6 +69,7 @@ mod internal {
             let client = ClientBuilder::new().build();
             let games_response = client.group_games(group_id).await?;
             if let Some(first_place) = games_response.data.first() {
+                println!("Getting place id for {} (API)", first_place.root_place.id);
                 Ok(first_place.root_place.id)
             } else {
                 Err(anyhow::anyhow!(

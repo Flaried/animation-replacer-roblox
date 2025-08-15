@@ -227,7 +227,7 @@ impl AnimationUploader {
 }
 
 mod internal {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     use roboat::{
         RoboatError,
@@ -288,6 +288,7 @@ mod internal {
 
             let mut timeout_seconds = INITIAL_TIMEOUT;
             let mut attempts = 0;
+            let mut skipped_asset_ids: HashSet<u64> = HashSet::new();
 
             loop {
                 let payloads = self.create_batch_payloads(asset_ids);
@@ -302,17 +303,15 @@ mod internal {
                 {
                     Ok(Some(responses)) => {
                         // Check if we got any 403 errors
-                        if let Some(new_place_id) = self
-                            .handle_first_403_error(&responses, cached_places)
+                        if let Some((new_place_id, failed_asset_id)) = self
+                            .handle_first_403_error(&responses, cached_places, &skipped_asset_ids)
                             .await?
                         {
                             // Found a 403 error and got a new place_id, retry with this place_id
+                            skipped_asset_ids.insert(failed_asset_id);
+
                             *place_id = Some(new_place_id);
 
-                            println!(
-                                "Got 403 error, retrying with place_id: {}",
-                                place_id.as_ref().unwrap()
-                            );
                             continue;
                         }
 
@@ -345,8 +344,9 @@ mod internal {
             &self,
             responses: &[AssetBatchResponse],
             cached_places: &mut HashMap<String, u64>,
-        ) -> anyhow::Result<Option<String>> {
-            // Find the first 403 error
+            skipped_asset_ids: &HashSet<u64>,
+        ) -> anyhow::Result<Option<(String, u64)>> {
+            // Find the first 403 error that we haven't already skipped
             for response in responses {
                 if self.has_403_error(response) {
                     if let Some(request_id_str) = &response.request_id {
@@ -354,14 +354,18 @@ mod internal {
                             anyhow::anyhow!("Failed to parse asset ID '{}': {}", request_id_str, e)
                         })?;
 
-                        let place_id = self.get_or_fetch_place_id(asset_id, cached_places).await?;
+                        // Skip if we've already tried this asset_id once
+                        if skipped_asset_ids.contains(&asset_id) {
+                            println!("Skipping asset_id {} - already retried once", asset_id);
+                            continue;
+                        }
 
-                        println!("Found place_id: {} for asset: {}", place_id, request_id_str);
-                        return Ok(Some(place_id.to_string()));
+                        let place_id = self.get_or_fetch_place_id(asset_id, cached_places).await?;
+                        return Ok(Some((place_id.to_string(), asset_id)));
                     }
                 }
             }
-            // No 403 errors found
+            // No retryable 403 errors found
             Ok(None)
         }
 
@@ -373,6 +377,10 @@ mod internal {
             let cache_key = asset_id.to_string();
 
             if let Some(&place_id) = cached_places.get(&cache_key) {
+                println!(
+                    "Found place-id {} in cache. asset-id is: {}, {:?}",
+                    place_id, cache_key, cached_places
+                );
                 return Ok(place_id);
             }
 
