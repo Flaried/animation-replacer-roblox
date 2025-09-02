@@ -47,10 +47,10 @@ This is required to authenticate your account for uploading animations.
 
 You will also need to open Roblox Studio and save the game as a file for the Animation Replacer.
 > [!NOTE]
-> Recommended to use the ``--ouput`` flag to avoid data loss if the game corrupts. 
+> Recommended to use the ``--output`` flag to avoid data loss if the game corrupts. 
 
    ```bash
-   cargo run -- --cookie "COOKIEHERE" --file "example.rbxl" --ouput "output.rbxl"
+   cargo run -- --cookie "COOKIEHERE" --file "example.rbxl" --output "output.rbxl"
    ```
 
 <div align="center">
@@ -74,7 +74,7 @@ The tool requires minimal setup:
 - **Roblox Cookie (REQUIRED)**: Your authentication token for accessing Roblox services
 - **Target File (REQUIRED)**: --file requires the path of the file to scan
 - **Group id (Optional)**: Upload to a group with --group flag
-- **Output (Optional)**: Use the --ouput flag to avoid data loss
+- **Output (Optional)**: Use the --output flag to avoid data loss
 - **Threads (Optional)**: the --threads flag is how many concurrent tasks need to run (default is 5)
 
 ## 🚨 Important Notes
