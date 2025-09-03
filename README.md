@@ -9,6 +9,11 @@
 <footer>Video Showcase</footer>
 </div>
 
+>    [!WARNING]
+>    This program has been unstable due to the lack of updates after Roblox's Changes.
+>    Major bug on fetching animations will be resolved soon, then will try to make it stable again
+>    Report issues here: https://github.com/Flaried/animation-replacer-roblox/issues
+
 ## 📝 Development Status
 - ✅ Scrape animations in lua scripts
 - ✅ Scrape animation objects in the game file
