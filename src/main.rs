@@ -2,7 +2,6 @@ use animation_replace_roblox::StudioParser;
 use animation_replace_roblox::animation::uploader::AnimationUploader;
 use clap::Parser;
 use roboat::assetdelivery::AssetBatchResponse;
-use std::cmp::Ordering;
 use std::sync::Arc;
 
 #[derive(Parser, Debug)]
