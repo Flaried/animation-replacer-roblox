@@ -210,15 +210,11 @@ impl AnimationUploader {
         &self,
         asset_ids: Vec<u64>,
     ) -> anyhow::Result<Vec<AssetBatchResponse>> {
-        let mut cached_places: HashMap<String, u64> = HashMap::new();
-        let mut place_id: Option<String> = None;
         let mut animations: Vec<AssetBatchResponse> = Vec::new();
         let batch_size = 250;
 
         for batch in asset_ids.chunks(batch_size) {
-            let batch_animations = self
-                .fetch_batch_with_retry(batch, &mut cached_places, &mut place_id)
-                .await?;
+            let batch_animations = self.fetch_batch_with_retry(batch).await?;
             animations.extend(batch_animations);
         }
 
@@ -227,12 +223,10 @@ impl AnimationUploader {
 }
 
 mod internal {
+    use anyhow::Context;
     use std::collections::{HashMap, HashSet};
 
-    use roboat::{
-        RoboatError,
-        assetdelivery::{AssetBatchPayload, AssetBatchResponse},
-    };
+    use roboat::assetdelivery::{AssetBatchPayload, AssetBatchResponse};
 
     use crate::AnimationUploader;
 
@@ -245,10 +239,6 @@ mod internal {
         ///
         /// # Parameters
         /// * `asset_ids` - A slice of asset IDs to fetch metadata for (typically up to 250 per batch)
-        /// * `cached_places` - A mutable reference to a HashMap that caches asset_id -> place_id mappings
-        ///                     to avoid redundant API calls across batches
-        /// * `place_id` - A mutable reference to an optional place_id that persists across retries and batches.
-        ///                When a 403 error occurs, this will be populated with the discovered place_id
         ///
         /// # Returns
         /// * `Ok(Vec<AssetBatchResponse>)` - Successfully fetched and filtered animation assets
@@ -278,54 +268,86 @@ mod internal {
         pub(super) async fn fetch_batch_with_retry(
             &self,
             asset_ids: &[u64],
-            cached_places: &mut HashMap<String, u64>,
-            place_id: &mut Option<String>,
         ) -> anyhow::Result<Vec<AssetBatchResponse>> {
             use tokio::time::{Duration, sleep};
 
-            const MAX_RETRIES: u32 = 9;
-            const INITIAL_TIMEOUT: u64 = 4;
+            // NOTE:
+            // 1. Try the asset_ids once.
+            // 2. Make a hashmap for failed ids
+            // 3. Resolve the place_id and have value:key as asset_id:place_id
+            // 4. After scanning all the responses resolve the errors
+            // (Retry the places with the place found once and if it doesnt work dont resolve it)
 
-            let mut timeout_seconds = INITIAL_TIMEOUT;
+            // Have placeid: vec[asset_ids] hashmap
+            let mut failed_ids: HashMap<u64, Vec<u64>> = HashMap::new();
+
+            // get place id
+            let init_place_id = self.get_initial_place(asset_ids).await.unwrap_or(0);
+            //
+            let mut sucess_responses: Vec<AssetBatchResponse> = Vec::new();
+            const MAX_RETRIES: u32 = 9;
             let mut attempts = 0;
-            let mut skipped_asset_ids: HashSet<u64> = HashSet::new();
+            let mut timeout_seconds: u64 = 4;
 
             loop {
-                let payloads = self.create_batch_payloads(asset_ids);
+                let initial_payload = self.create_batch_payloads(asset_ids);
 
                 match self
-                    .check_asset_metadata(
-                        payloads,
-                        place_id.clone(),
-                        Duration::from_secs(timeout_seconds),
-                    )
+                    .check_asset_metadata(initial_payload, init_place_id, Duration::from_secs(5))
                     .await
                 {
                     Ok(Some(responses)) => {
-                        // Check if we got any 403 errors
-                        if let Some((new_place_id, failed_asset_id)) = self
-                            .handle_first_403_error(&responses, cached_places, &skipped_asset_ids)
-                            .await?
-                        {
-                            // Found a 403 error and got a new place_id, retry with this place_id
-                            skipped_asset_ids.insert(failed_asset_id);
+                        // look for success and fails
+                        for response in responses {
+                            if response.errors.is_none() {
+                                // make asset_id a u64
+                                println!("sucessfully fetched animation details");
+                                sucess_responses.push(response);
+                            } else if response.errors.is_some() {
+                                // println!("errors is {:?}", response.errors);
+                                // if the response has error then map it in failed_ids
+                                let request_id = response.request_id;
+                                // make asset_id a u64
+                                if let Some(asset_id) =
+                                    request_id.and_then(|s| s.parse::<u64>().ok())
+                                {
+                                    match self
+                                        .get_or_fetch_place_id(asset_id, &mut failed_ids)
+                                        .await
+                                    {
+                                        Ok(place_id) => {
+                                            // Make a key of the place_id or if its there make the list
+                                            // bigger with the asset_id
+                                            println!(
+                                                "Found place_id: {} for asset: {}",
+                                                place_id, asset_id
+                                            );
 
-                            *place_id = Some(new_place_id);
-
-                            continue;
+                                            failed_ids
+                                                .entry(place_id)
+                                                .or_insert_with(Vec::new)
+                                                .push(asset_id);
+                                        }
+                                        Err(e) => {
+                                            println!("failed to get place id: {}", e);
+                                        }
+                                    }
+                                }
+                            } else {
+                                println!("request_id is None request: {:?} BREAKING", response);
+                            }
                         }
-
-                        // No 403 errors, filter and return animations
-                        return Ok(self.filter_animations(responses));
+                        break;
                     }
                     Ok(None) => {
-                        return Ok(Vec::new());
+                        println!("got no responses");
+                        break;
                     }
                     Err(e) => {
+                        println!("error checking asset metadata: {}", e);
                         if self.should_retry(&e, attempts, MAX_RETRIES) {
                             attempts += 1;
                             timeout_seconds += 1;
-
                             println!(
                                 "Request failed, retrying with higher timeout: attempts {}/{} ({})",
                                 attempts, MAX_RETRIES, e
@@ -334,100 +356,104 @@ mod internal {
                             sleep(Duration::from_secs(2)).await;
                             continue;
                         }
-                        return Err(e);
+                        break;
+                        // break; // or handle error as appropriate
                     }
                 }
             }
+
+            // TODO: resolve places
+            let mut resolved_responses = self.resolve_assets_with_places(failed_ids).await;
+            sucess_responses.append(&mut resolved_responses);
+            return Ok(sucess_responses);
         }
 
-        pub(super) async fn handle_first_403_error(
+        /// Returns Place Id (String) and asset_id (u64)
+        pub(super) async fn get_initial_place(&self, asset_ids: &[u64]) -> anyhow::Result<u64> {
+            let mut empty_map: HashMap<u64, Vec<u64>> = HashMap::new();
+            for asset_id in asset_ids {
+                match self.get_or_fetch_place_id(*asset_id, &mut empty_map).await {
+                    Ok(place_id) => {
+                        return Ok(place_id);
+                    }
+                    Err(e) => {
+                        eprintln!("Error getting place for asset {}: {:?}", asset_id, e);
+                        continue;
+                    }
+                }
+            }
+            Err(anyhow::anyhow!(
+                "Could not find valid place ID for any asset"
+            ))
+        }
+
+        /// Helper func for fetch_batch_with_retry to resolve all the 403 errors that have to do
+        /// with place_id not being in headers
+        pub(super) async fn resolve_assets_with_places(
             &self,
-            responses: &[AssetBatchResponse],
-            cached_places: &mut HashMap<String, u64>,
-            skipped_asset_ids: &HashSet<u64>,
-        ) -> anyhow::Result<Option<(String, u64)>> {
-            // Find the first 403 error that we haven't already skipped
-            for response in responses {
-                if self.has_403_error(response) {
-                    if let Some(request_id_str) = &response.request_id {
-                        let asset_id: u64 = request_id_str.parse().map_err(|e| {
-                            anyhow::anyhow!("Failed to parse asset ID '{}': {}", request_id_str, e)
-                        })?;
+            asset_and_places: HashMap<u64, Vec<u64>>,
+        ) -> Vec<AssetBatchResponse> {
+            use tokio::time::Duration;
+            let mut resolved_responses: Vec<AssetBatchResponse> = Vec::new();
 
-                        // Skip if we've already tried this asset_id once
-                        if skipped_asset_ids.contains(&asset_id) {
-                            println!("Skipping asset_id {} - already retried once", asset_id);
-                            continue;
+            for (place_id, vec_assets) in asset_and_places {
+                let payload = self.create_batch_payloads(&vec_assets);
+
+                match self
+                    .check_asset_metadata(payload, place_id, Duration::from_secs(5))
+                    .await
+                {
+                    Ok(Some(responses)) => {
+                        // debug
+                        for response in responses {
+                            if response.errors.is_none() {
+                                println!("sucessfully resolved error: {:?}", response.request_id);
+                                resolved_responses.push(response);
+                            } else {
+                                eprintln!(
+                                    "error not resolved after using place_id {:?} in headers",
+                                    response.request_id
+                                );
+                            }
                         }
-
-                        let place_id = self.get_or_fetch_place_id(asset_id, cached_places).await?;
-                        return Ok(Some((place_id.to_string(), asset_id)));
+                    }
+                    Ok(None) => {
+                        println!("got no response");
+                    }
+                    Err(e) => {
+                        eprintln!("{:?}", e);
                     }
                 }
             }
-            // No retryable 403 errors found
-            Ok(None)
+            return resolved_responses;
         }
 
+        /// Fetches the assets place id by calling the internal place_id func. will skip this
+        /// function if place_id was already found
         pub(super) async fn get_or_fetch_place_id(
             &self,
             asset_id: u64,
-            cached_places: &mut HashMap<String, u64>,
+            cached_places: &mut HashMap<u64, Vec<u64>>, // place_id -> asset_ids
         ) -> anyhow::Result<u64> {
-            let cache_key = asset_id.to_string();
-
-            if let Some(&place_id) = cached_places.get(&cache_key) {
-                println!(
-                    "Found place-id {} in cache. asset-id is: {}, {:?}",
-                    place_id, cache_key, cached_places
-                );
-                return Ok(place_id);
+            // Try to find if asset_id is already recorded
+            for (place_id, assets) in cached_places.iter() {
+                if assets.contains(&asset_id) {
+                    println!(
+                        "Found place_id {} in cache for asset {}",
+                        place_id, asset_id
+                    );
+                    return Ok(*place_id);
+                }
             }
 
-            let place_id = self.place_id(asset_id, cached_places).await.map_err(|e| {
-                anyhow::anyhow!(
-                    "Failed to get place id for asset {} error: {}",
-                    cache_key,
-                    e
-                )
-            })?;
+            let place_id = self
+                .place_id(asset_id, cached_places)
+                .await
+                .with_context(|| format!("Failed to get place id for asset {}", asset_id))?;
 
-            cached_places.insert(cache_key, place_id);
+            cached_places.entry(place_id).or_default().push(asset_id);
+
             Ok(place_id)
-        }
-        pub(super) fn create_batch_payloads(&self, asset_ids: &[u64]) -> Vec<AssetBatchPayload> {
-            asset_ids
-                .iter()
-                .map(|&asset_id| AssetBatchPayload {
-                    asset_id: Some(asset_id.to_string()),
-                    request_id: Some(asset_id.to_string()),
-                    ..Default::default()
-                })
-                .collect()
-        }
-
-        pub(super) fn has_403_error(&self, response: &AssetBatchResponse) -> bool {
-            response
-                .errors
-                .as_ref()
-                .map(|errors| errors.iter().any(|error| error.code == 403))
-                .unwrap_or(false)
-        }
-
-        pub(super) fn filter_animations(
-            &self,
-            responses: Vec<AssetBatchResponse>,
-        ) -> Vec<AssetBatchResponse> {
-            use roboat::catalog::AssetType;
-
-            responses
-                .into_iter()
-                .filter(|response| {
-                    // Only include responses without errors that are animations
-                    response.errors.is_none()
-                        && matches!(response.asset_type, Some(AssetType::Animation))
-                })
-                .collect()
         }
 
         pub(super) fn should_retry(
@@ -436,6 +462,7 @@ mod internal {
             attempts: u32,
             max_retries: u32,
         ) -> bool {
+            use roboat::RoboatError;
             if attempts >= max_retries {
                 return false;
             }
@@ -449,6 +476,18 @@ mod internal {
             } else {
                 false
             }
+        }
+        ///
+        /// Takes in a vector of asset_ids then formats them in the payload that roblox expects
+        pub(super) fn create_batch_payloads(&self, asset_ids: &[u64]) -> Vec<AssetBatchPayload> {
+            asset_ids
+                .iter()
+                .map(|&asset_id| AssetBatchPayload {
+                    asset_id: Some(asset_id.to_string()),
+                    request_id: Some(asset_id.to_string()),
+                    ..Default::default()
+                })
+                .collect()
         }
     }
 }
