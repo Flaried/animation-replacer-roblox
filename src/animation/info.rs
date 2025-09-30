@@ -8,7 +8,7 @@ impl AnimationUploader {
     pub async fn place_id(
         &self,
         asset_id: u64,
-        cached_owners: &mut HashMap<String, u64>,
+        cached_places: &mut HashMap<u64, Vec<u64>>, // place_id -> asset_ids
     ) -> anyhow::Result<u64> {
         let client = ClientBuilder::new()
             .roblosecurity(self.roblosecurity.to_string())
@@ -22,7 +22,10 @@ impl AnimationUploader {
                 .map_err(|e| anyhow::anyhow!("Failed to parse user_id '{}': {}", user_id, e))?;
 
             let place_id = self.user_places(user_id_parsed).await?;
-            cached_owners.insert(user_id.clone(), place_id);
+
+            // record mapping place_id -> asset_id
+            cached_places.entry(place_id).or_default().push(asset_id);
+
             return Ok(place_id);
         }
 
@@ -32,9 +35,13 @@ impl AnimationUploader {
                 .map_err(|e| anyhow::anyhow!("Failed to parse group_id '{}': {}", group_id, e))?;
 
             let place_id = self.group_places(group_id_parsed).await?;
-            cached_owners.insert(group_id.clone(), place_id);
+
+            // record mapping place_id -> asset_id
+            cached_places.entry(place_id).or_default().push(asset_id);
+
             return Ok(place_id);
         }
+
         Err(anyhow::anyhow!(
             "No user_id or group_id found for asset {}",
             asset_id
@@ -57,7 +64,6 @@ mod internal {
             let client = ClientBuilder::new().build();
             let games_response = client.user_games(user_id).await?;
             if let Some(first_place) = games_response.data.first() {
-                println!("Getting place id for {} (API)", first_place.root_place.id);
                 Ok(first_place.root_place.id)
             } else {
                 Err(anyhow::anyhow!("Couldn't find place for user {}", user_id))
@@ -69,7 +75,6 @@ mod internal {
             let client = ClientBuilder::new().build();
             let games_response = client.group_games(group_id).await?;
             if let Some(first_place) = games_response.data.first() {
-                println!("Getting place id for {} (API)", first_place.root_place.id);
                 Ok(first_place.root_place.id)
             } else {
                 Err(anyhow::anyhow!(
@@ -85,16 +90,14 @@ mod internal {
         pub async fn check_asset_metadata(
             &self,
             asset_ids: Vec<AssetBatchPayload>,
-            place_id: Option<String>,
+            place_id: u64,
             timeout_secs: time::Duration,
         ) -> anyhow::Result<Option<Vec<AssetBatchResponse>>> {
             let mut headers = HeaderMap::new();
-            if let Some(place) = place_id {
-                headers.insert(
-                    "Roblox-Place-Id",
-                    HeaderValue::from_str(&place.to_string())?,
-                );
-            }
+            headers.insert(
+                "Roblox-Place-Id",
+                HeaderValue::from_str(&place_id.to_string())?,
+            );
 
             let timeout_client = reqwest::ClientBuilder::new()
                 .timeout(timeout_secs)
