@@ -224,9 +224,16 @@ impl AnimationUploader {
 
 mod internal {
     use anyhow::Context;
-    use std::collections::{HashMap, HashSet};
+    use std::{
+        collections::{HashMap, HashSet},
+        time::Duration,
+    };
+    use tokio::{io::DuplexStream, time};
 
-    use roboat::assetdelivery::{AssetBatchPayload, AssetBatchResponse};
+    use roboat::{
+        RoboatError,
+        assetdelivery::{AssetBatchPayload, AssetBatchResponse},
+    };
 
     use crate::AnimationUploader;
 
@@ -411,8 +418,8 @@ mod internal {
                                 resolved_responses.push(response);
                             } else {
                                 eprintln!(
-                                    "error not resolved after using place_id {:?} in headers",
-                                    response.request_id
+                                    "error not resolved for {:?} after using place_id {:?} in headers \n response is {:?}",
+                                    response.request_id, place_id, response
                                 );
                             }
                         }
@@ -446,14 +453,29 @@ mod internal {
                 }
             }
 
-            let place_id = self
-                .place_id(asset_id, cached_places)
-                .await
-                .with_context(|| format!("Failed to get place id for asset {}", asset_id))?;
-
-            cached_places.entry(place_id).or_default().push(asset_id);
-
-            Ok(place_id)
+            loop {
+                match self.place_id(asset_id, cached_places).await {
+                    Ok(place_id) => {
+                        cached_places.entry(place_id).or_default().push(asset_id);
+                        return Ok(place_id);
+                    }
+                    Err(e) => {
+                        if let Some(RoboatError::TooManyRequests) = e.downcast_ref::<RoboatError>()
+                        {
+                            println!(
+                                "place_id fetching got ratelimited waiting 4 seconds then retrying.."
+                            );
+                            time::sleep(Duration::from_secs(4)).await;
+                        } else {
+                            return Err(anyhow::anyhow!(
+                                "got error other than too many requests: {}",
+                                e
+                            ));
+                        }
+                    }
+                }
+            }
+            // .with_context(|| format!("Failed to get place id for asset {}", asset_id))?;
         }
 
         pub(super) fn should_retry(
